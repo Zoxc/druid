@@ -116,11 +116,11 @@ fn reactive_counter(data: &mut ReactiveCounter) -> impl View<ReactiveCounter> {
 
 // Use a view as a widget
 struct ViewAsWidget<S, V: View<S>> {
-    state: S,
+    logic_state: S,
     view_tree_builder: fn(&mut S) -> V,
     view_state: V::State,
     view: V,
-    root_pod: Pod,
+    element: Pod,
     id: Id,
 }
 
@@ -128,78 +128,76 @@ impl<S, V: View<S>> ViewAsWidget<S, V>
 where
     V::Element: Widget + 'static,
 {
-    fn new(cx: &mut Cx, mut state: S, view_tree_builder: fn(&mut S) -> V) -> Self {
-        let view = view_tree_builder(&mut state);
+    fn new(cx: &mut Cx, mut logic_state: S, view_tree_builder: fn(&mut S) -> V) -> Self {
+        let view = view_tree_builder(&mut logic_state);
         let (id, view_state, element) = view.build(cx);
-        let root_pod = Pod::new(element);
+        let element = Pod::new(element);
         ViewAsWidget {
             view_tree_builder,
             view,
             view_state,
-            state,
+            logic_state,
             id,
-            root_pod,
+            element,
         }
     }
 }
 
-impl<S, V: View<S>> Widget for ViewAsWidget<S, V> {
+impl<S, V: View<S>> Widget for ViewAsWidget<S, V>
+where
+    V::Element: Widget + 'static,
+{
+    fn message(&mut self, id_path: &[Id], event: Box<dyn Any>) -> EventResult<()> {
+        let result = self.view.event(
+            id_path,
+            &mut self.view_state,
+            self.element.downcast_mut().unwrap(),
+            event,
+            &mut self.logic_state,
+        );
+        let view = (self.view_tree_builder)(&mut self.logic_state);
+        let cx = Cx::new();
+        let changed = self.view.rebuild(
+            &mut cx,
+            &self.view,
+            &mut self.id,
+            &mut self.view_state,
+            self.element.downcast_mut().unwrap(),
+        );
+        if changed {
+            self.element.update(cx);
+        }
+        result
+    }
+
     fn update(&mut self, cx: &mut UpdateCx) {
         //self.root_pod.update(cx);
         //cx.request_layout();
     }
 
     fn event(&mut self, cx: &mut EventCx, event: &RawEvent) {
-        /*match event {
-            RawEvent::MouseDown(_) => {
-                cx.set_active(true);
-                // TODO: request paint
-            }
-            RawEvent::MouseUp(_) => {
-                if cx.is_hot() {
-                    cx.add_event(Event::new(self.id_path.clone(), ()));
-                }
-                cx.set_active(false);
-                // TODO: request paint
-            }
-            _ => (),
-        };*/
+        self.element.event(cx, event);
     }
 
     fn lifecycle(&mut self, cx: &mut LifeCycleCx, event: &LifeCycle) {
-        /*
-        match event {
-            LifeCycle::HotChanged(_) => cx.request_paint(),
-            _ => (),
-        } */
+        self.element.lifecycle(cx, event);
     }
 
     fn prelayout(&mut self, cx: &mut LayoutCx) -> (Size, Size) {
-        /*
-        let padding = Size::new(LABEL_INSETS.x_value(), LABEL_INSETS.y_value());
-        let min_height = 24.0;
-        let layout = cx
-            .text()
-            .new_text_layout(self.label.clone())
-            .text_color(Color::rgb8(0xf0, 0xf0, 0xea))
-            .build()
-            .unwrap();
-        let size = Size::new(
-            layout.size().width + padding.width,
-            (layout.size().height + padding.height).max(min_height),
-        );
-        self.layout = Some(layout);
-        (Size::new(10.0, min_height), size) */
-        (Size::new(0., 0.), Size::new(0., 0.))
+        self.element.prelayout(cx)
     }
 
     fn layout(&mut self, cx: &mut LayoutCx, proposed_size: Size) -> Size {
-        Size::new(0., 0.)
+        self.element.layout(cx, proposed_size)
     }
 
-    fn align(&self, cx: &mut AlignCx, alignment: SingleAlignment) {}
+    fn align(&self, cx: &mut AlignCx, alignment: SingleAlignment) {
+        self.element.align(cx, alignment);
+    }
 
-    fn paint(&mut self, cx: &mut PaintCx) {}
+    fn paint(&mut self, cx: &mut PaintCx) {
+        self.element.paint(cx);
+    }
 }
 
 // Use a widget as a view
