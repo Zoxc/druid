@@ -27,17 +27,17 @@ pub mod widget;
 
 pub use app::App;
 pub use app_main::AppLauncher;
-pub use view::adapt::Adapt;
+/*pub use view::adapt::Adapt;
 pub use view::async_list::async_list;
 pub use view::button::button;
 pub use view::layout_observer::LayoutObserver;
 pub use view::list::list;
 pub use view::memoize::Memoize;
 pub use view::scroll_view::scroll_view;
-pub use view::vstack::v_stack;
-pub use view::View;
-pub use view::Cx;
+pub use view::vstack::v_stack;*/
 pub use event::EventResult;
 pub use id::{Id, IdPath};
+pub use view::Cx;
+pub use view::View;
 pub use widget::align::{AlignmentAxis, AlignmentProxy, HorizAlignment, VertAlignment};
 pub use widget::Widget;
