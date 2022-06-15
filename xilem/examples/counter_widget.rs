@@ -55,11 +55,12 @@ impl Widget for CounterWidget {
     }
 
     fn update(&mut self, cx: &mut UpdateCx) {
+        println!("updating CounterWidget");
         self.stack.update(cx);
     }
 
-    fn measure(&mut self, cx: &mut LayoutCx) -> (Size, Size) {
-        self.stack.measure(cx)
+    fn prelayout(&mut self, cx: &mut LayoutCx) -> (Size, Size) {
+        self.stack.prelayout(cx)
     }
 
     fn layout(&mut self, cx: &mut LayoutCx, proposed_size: Size) -> Size {
@@ -98,13 +99,13 @@ impl View<(), ()> for CounterWidgetView {
 
     fn event(
         &self,
-        _id_path: &[Id],
+        id_path: &[Id],
         _state: &mut Self::State,
         element: &mut Self::Element,
-        _event: Box<dyn Any>,
+        event: Box<dyn Any>,
         _app_state: &mut (),
     ) -> EventResult<()> {
-        self.element.message(event)
+        element.message(id_path, event)
     }
 }
 
