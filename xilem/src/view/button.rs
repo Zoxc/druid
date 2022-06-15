@@ -71,6 +71,7 @@ impl<T, A> View<T, A> for Button<T, A> {
         &self,
         _id_path: &[crate::id::Id],
         _state: &mut Self::State,
+        _element: &mut Self::Element,
         _event: Box<dyn Any>,
         app_state: &mut T,
     ) -> EventResult<A> {

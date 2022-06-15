@@ -17,6 +17,7 @@ use druid_shell::piet::{Color, Piet, RenderContext};
 use druid_shell::WindowHandle;
 
 use crate::widget::{CxState, EventCx, LayoutCx, PaintCx, Pod, UpdateCx, WidgetState};
+use crate::EventResult;
 use crate::{
     event::Event,
     id::Id,

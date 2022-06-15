@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use xilem::{button, v_stack, Adapt, App, AppLauncher, LayoutObserver, Memoize, View};
+use xilem::{button, v_stack, Adapt, App, AppLauncher, Memoize, View};
 
 #[derive(Default)]
 struct AppData {
@@ -36,7 +36,7 @@ fn app_logic(data: &mut AppData) -> impl View<AppData> {
             |data: &mut AppData, thunk| thunk.call(&mut data.count),
             count_button(data.count),
         ),
-        LayoutObserver::new(|size| format!("size: {:?}", size)),
+        //LayoutObserver::new(|size| format!("size: {:?}", size)),
     ))
 }
 

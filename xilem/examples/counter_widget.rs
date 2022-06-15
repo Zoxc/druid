@@ -36,14 +36,13 @@ impl CounterWidget {
 
 impl Widget for CounterWidget {
     fn message(&mut self, id_path: &[Id], event: Box<dyn Any>) -> EventResult<()> {
-        println!("message");
         self.count += 1;
 
-        let label: &mut TextWidget = self.stack.children_mut()[0].downcast_mut().unwrap();
+        let label = &mut self.stack.children_mut()[0];
+        label.request_update();
+        let label: &mut TextWidget = label.downcast_mut().unwrap();
         label.set_text(format!("Count: {}", self.count));
-        // label.update(cx); - Cannot call
-
-        EventResult::RequestRebuild
+        EventResult::RequestUpdate
     }
 
     fn event(&mut self, cx: &mut EventCx, event: &RawEvent) {
@@ -55,7 +54,6 @@ impl Widget for CounterWidget {
     }
 
     fn update(&mut self, cx: &mut UpdateCx) {
-        println!("updating CounterWidget");
         self.stack.update(cx);
     }
 
@@ -77,13 +75,13 @@ impl Widget for CounterWidget {
 struct CounterWidgetView;
 
 impl View<(), ()> for CounterWidgetView {
-    type State = ();
+    type State = bool;
 
     type Element = CounterWidget;
 
     fn build(&self, cx: &mut Cx) -> (Id, Self::State, Self::Element) {
         let (id, element) = cx.with_new_id(|cx| CounterWidget::new(cx));
-        (id, (), element)
+        (id, false, element)
     }
 
     fn rebuild(
@@ -91,21 +89,26 @@ impl View<(), ()> for CounterWidgetView {
         _cx: &mut Cx,
         _prev: &Self,
         _id: &mut Id,
-        _state: &mut Self::State,
+        state: &mut Self::State,
         _element: &mut Self::Element,
     ) -> bool {
-        false
+        //println!("rebuild {}", state);
+        std::mem::take(state)
     }
 
     fn event(
         &self,
         id_path: &[Id],
-        _state: &mut Self::State,
+        state: &mut Self::State,
         element: &mut Self::Element,
         event: Box<dyn Any>,
         _app_state: &mut (),
     ) -> EventResult<()> {
-        element.message(id_path, event)
+        let result = element.message(id_path, event);
+        if let EventResult::RequestUpdate = result {
+            *state = true;
+        }
+        result
     }
 }
 

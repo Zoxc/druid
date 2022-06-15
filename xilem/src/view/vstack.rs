@@ -66,9 +66,11 @@ where
         &self,
         id_path: &[Id],
         state: &mut Self::State,
+        element: &mut Self::Element,
         event: Box<dyn Any>,
         app_state: &mut T,
     ) -> EventResult<A> {
-        self.children.event(id_path, state, event, app_state)
+        self.children
+            .event(id_path, state, element.children_mut(), event, app_state)
     }
 }

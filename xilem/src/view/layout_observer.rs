@@ -103,6 +103,7 @@ where
         &self,
         id_path: &[crate::id::Id],
         state: &mut Self::State,
+        element: &mut Self::Element,
         event: Box<dyn Any>,
         app_state: &mut T,
     ) -> EventResult<A> {
@@ -116,7 +117,7 @@ where
             if let (Some(child_view), Some(child_state)) =
                 (&state.child_view, &mut state.child_state)
             {
-                child_view.event(tl, child_state, event, app_state)
+                child_view.event(tl, child_state, self.element, event, app_state)
             } else {
                 EventResult::Stale
             }

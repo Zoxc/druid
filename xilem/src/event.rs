@@ -21,6 +21,7 @@ pub struct Event {
     pub body: Box<dyn Any>,
 }
 
+#[derive(Debug)]
 /// A result wrapper type for event handlers.
 pub enum EventResult<A> {
     /// The event handler was invoked and returned an action.
@@ -28,6 +29,9 @@ pub enum EventResult<A> {
     /// The event handler received a change request that requests a rebuild.
     #[allow(unused)]
     RequestRebuild,
+    /// The event handler received a change request that requests an update of the widget tree.
+    #[allow(unused)]
+    RequestUpdate,
     /// The event handler discarded the event.
     #[allow(unused)]
     Nop,
@@ -44,6 +48,7 @@ impl<A> EventResult<A> {
         match self {
             EventResult::Action(a) => EventResult::Action(f(a)),
             EventResult::RequestRebuild => EventResult::RequestRebuild,
+            EventResult::RequestUpdate => EventResult::RequestUpdate,
             EventResult::Stale => EventResult::Stale,
             EventResult::Nop => EventResult::Nop,
         }
