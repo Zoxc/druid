@@ -19,9 +19,12 @@ use super::{
     contexts::LifeCycleCx,
     EventCx, LayoutCx, LifeCycle, PaintCx, Pod, RawEvent, UpdateCx, Widget,
 };
+use crate::{Cx, EventResult, Id};
 
 pub struct VStack {
+    id: Option<Id>,
     children: Vec<Pod>,
+    ids: Vec<Option<Id>>,
     alignment: SingleAlignment,
     spacing: f64,
 }
@@ -31,10 +34,18 @@ impl VStack {
         let alignment = SingleAlignment::from_horiz(&Center);
         let spacing = 0.0;
         VStack {
+            ids: children.iter().map(|pod| pod.widget.id()).collect(),
             children,
             alignment,
             spacing,
+            id: None,
         }
+    }
+
+    pub fn with_id(cx: &mut Cx, children: impl FnOnce(&mut Cx) -> Vec<Pod>) -> Self {
+        let (id, mut stack) = cx.with_new_id(|cx| Self::new(children(cx)));
+        stack.id = Some(id);
+        stack
     }
 
     pub fn children_mut(&mut self) -> &mut Vec<Pod> {
@@ -43,6 +54,30 @@ impl VStack {
 }
 
 impl Widget for VStack {
+    fn id(&self) -> Option<Id> {
+        self.id
+    }
+
+    fn message(&mut self, id_path: &[crate::Id], event: Box<dyn std::any::Any>) -> EventResult<()> {
+        let hd = id_path[0];
+        let tl = &id_path[1..];
+        let child = self
+            .ids
+            .iter()
+            .enumerate()
+            .find(|(_, id)| **id == Some(hd))
+            .unwrap()
+            .0;
+
+        let result = self.children[child].widget.message(tl, event);
+
+        if let EventResult::RequestRebuild = result {
+            self.children[child].request_update();
+        }
+
+        result
+    }
+
     fn event(&mut self, cx: &mut EventCx, event: &RawEvent) {
         for child in &mut self.children {
             child.event(cx, event);

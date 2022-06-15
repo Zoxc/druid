@@ -26,8 +26,9 @@ use std::ops::{Deref, DerefMut};
 
 use druid_shell::kurbo::Size;
 
-use self::contexts::LifeCycleCx;
-pub use self::contexts::{AlignCx, CxState, EventCx, LayoutCx, PaintCx, UpdateCx};
+use crate::{Cx, EventResult, Id};
+
+pub use self::contexts::{AlignCx, CxState, EventCx, LayoutCx, LifeCycleCx, PaintCx, UpdateCx};
 pub use self::core::Pod;
 pub(crate) use self::core::{PodFlags, WidgetState};
 pub use self::raw_event::{LifeCycle, RawEvent};
@@ -36,6 +37,14 @@ use self::align::SingleAlignment;
 
 /// A basic widget trait.
 pub trait Widget {
+    fn id(&self) -> Option<Id> {
+        None
+    }
+
+    fn message(&mut self, id_path: &[Id], event: Box<dyn Any>) -> EventResult<()> {
+        EventResult::Nop
+    }
+
     fn event(&mut self, cx: &mut EventCx, event: &RawEvent);
 
     /// Propagate a lifecycle event.
@@ -84,6 +93,14 @@ impl<W: Widget + 'static> AnyWidget for W {
 }
 
 impl Widget for Box<dyn AnyWidget> {
+    fn id(&self) -> Option<Id> {
+        self.deref().id()
+    }
+
+    fn message(&mut self, id_path: &[Id], event: Box<dyn Any>) -> EventResult<()> {
+        self.deref_mut().message(id_path, event)
+    }
+
     fn event(&mut self, cx: &mut EventCx, event: &RawEvent) {
         self.deref_mut().event(cx, event);
     }

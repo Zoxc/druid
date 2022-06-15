@@ -84,13 +84,18 @@ impl<T, A, S, V: View<(Rc<T>, S), A>, FInit: Fn() -> S, F: Fn(&mut S) -> V> View
         &self,
         id_path: &[Id],
         state: &mut Self::State,
+        element: &mut Self::Element,
         event: Box<dyn Any>,
         app_state: &mut Rc<T>,
     ) -> EventResult<A> {
         let mut local_state = (app_state.clone(), state.state.take().unwrap());
-        let a = state
-            .view
-            .event(id_path, &mut state.view_state, event, &mut local_state);
+        let a = state.view.event(
+            id_path,
+            &mut state.view_state,
+            element,
+            event,
+            &mut local_state,
+        );
         let (local_app_state, my_state) = local_state;
         if !Rc::ptr_eq(app_state, &local_app_state) {
             *app_state = local_app_state

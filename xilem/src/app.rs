@@ -119,18 +119,20 @@ where
     }
 
     pub fn run_app_logic(&mut self) {
-        for event in self.events.drain(..) {
-            let id_path = &event.id_path[1..];
-            self.view.as_ref().unwrap().event(
-                id_path,
-                self.state.as_mut().unwrap(),
-                event.body,
-                &mut self.data,
-            );
-        }
-        // Re-rendering should be more lazy.
-        let view = (self.app_logic)(&mut self.data);
         if let Some(element) = self.root_pod.as_mut().unwrap().downcast_mut() {
+            for event in self.events.drain(..) {
+                let id_path = &event.id_path[1..];
+                self.view.as_ref().unwrap().event(
+                    id_path,
+                    self.state.as_mut().unwrap(),
+                    element,
+                    event.body,
+                    &mut self.data,
+                );
+            }
+            // FIXME: Should only run if there were any events
+            // Re-rendering should be more lazy.
+            let view = (self.app_logic)(&mut self.data);
             let changed = view.rebuild(
                 &mut self.cx,
                 self.view.as_ref().unwrap(),
@@ -142,7 +144,7 @@ where
                 self.root_pod.as_mut().unwrap().request_update();
             }
             assert!(self.cx.is_empty(), "id path imbalance on rebuild");
+            self.view = Some(view);
         }
-        self.view = Some(view);
     }
 }

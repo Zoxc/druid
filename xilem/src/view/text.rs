@@ -48,6 +48,7 @@ impl<T, A> View<T, A> for String {
         &self,
         _id_path: &[crate::id::Id],
         _state: &mut Self::State,
+        _element: &mut Self::Element,
         _event: Box<dyn Any>,
         _app_state: &mut T,
     ) -> EventResult<A> {

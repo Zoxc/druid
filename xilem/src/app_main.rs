@@ -70,6 +70,7 @@ impl<T: 'static, V: View<T> + 'static, F: FnMut(&mut T) -> V + 'static> AppLaunc
         builder.set_handler(Box::new(main_state));
         builder.set_title(self.title);
         builder.set_menu(menubar);
+        builder.set_size(Size::new(600.0, 400.0));
         let window = builder.build().unwrap();
         window.show();
         druid_app.run(None);

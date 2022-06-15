@@ -31,6 +31,7 @@ pub struct Adapt<T, A, U, B, F: Fn(&mut T, AdaptThunk<U, B, C>) -> EventResult<A
 pub struct AdaptThunk<'a, U, B, C: View<U, B>> {
     child: &'a C,
     state: &'a mut C::State,
+    element: &'a mut C::Element,
     id_path: &'a [Id],
     event: Box<dyn Any>,
 }
@@ -49,8 +50,13 @@ impl<T, A, U, B, F: Fn(&mut T, AdaptThunk<U, B, C>) -> EventResult<A>, C: View<U
 
 impl<'a, U, B, C: View<U, B>> AdaptThunk<'a, U, B, C> {
     pub fn call(self, app_state: &mut U) -> EventResult<B> {
-        self.child
-            .event(self.id_path, self.state, self.event, app_state)
+        self.child.event(
+            self.id_path,
+            self.state,
+            self.element,
+            self.event,
+            app_state,
+        )
     }
 }
 
@@ -80,12 +86,14 @@ impl<T, A, U, B, F: Fn(&mut T, AdaptThunk<U, B, C>) -> EventResult<A>, C: View<U
         &self,
         id_path: &[Id],
         state: &mut Self::State,
+        element: &mut Self::Element,
         event: Box<dyn Any>,
         app_state: &mut T,
     ) -> EventResult<A> {
         let thunk = AdaptThunk {
             child: &self.child,
             state,
+            element,
             id_path,
             event,
         };
