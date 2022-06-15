@@ -28,8 +28,7 @@ use std::ops::{Deref, DerefMut};
 
 use druid_shell::kurbo::{Rect, Size};
 
-use self::contexts::LifeCycleCx;
-pub use self::contexts::{AlignCx, CxState, EventCx, LayoutCx, PaintCx, PreparePaintCx, UpdateCx};
+pub use self::contexts::{AlignCx, CxState, EventCx, LayoutCx, PaintCx, PreparePaintCx, UpdateCx, LifeCycleCx};
 pub use self::core::Pod;
 pub(crate) use self::core::{PodFlags, WidgetState};
 pub use self::raw_event::{LifeCycle, RawEvent};

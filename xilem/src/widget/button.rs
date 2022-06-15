@@ -50,7 +50,7 @@ impl Button {
 }
 
 // See druid's button for info.
-const LABEL_INSETS: Insets = Insets::uniform_xy(8., 2.);
+const LABEL_INSETS: Insets = Insets::uniform_xy(10., 6.);
 
 impl Widget for Button {
     fn update(&mut self, cx: &mut UpdateCx) {
@@ -121,12 +121,12 @@ impl Widget for Button {
     fn paint(&mut self, cx: &mut PaintCx) {
         let is_hot = cx.is_hot();
         let is_active = cx.is_active();
-        let button_border_width = 2.0;
+        let button_border_width = 3.0;
         let rounded_rect = cx
             .size()
             .to_rect()
             .inset(-0.5 * button_border_width)
-            .to_rounded_rect(4.0);
+            .to_rounded_rect(8.0);
         let border_color = if is_hot {
             Color::rgb8(0xa1, 0xa1, 0xa1)
         } else {
