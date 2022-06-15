@@ -15,15 +15,18 @@ struct CounterWidget {
 }
 
 impl CounterWidget {
-    pub fn new() -> Self {
-        let id_path = IdPath::new(); // Needs a value.
-        let widgets = vec![
-            Pod::new(TextWidget::new(format!("Count: {}", 0))),
-            Pod::new(widget::button::Button::new(
-                &id_path,
-                "Increase".to_string(),
-            )),
-        ];
+    pub fn new(cx: &mut Cx) -> Self {
+        let widgets = cx
+            .with_new_id(|cx| {
+                vec![
+                    Pod::new(TextWidget::new(format!("Count: {}", 0))),
+                    Pod::new(widget::button::Button::new(
+                        cx.id_path(),
+                        "Increase".to_string(),
+                    )),
+                ]
+            })
+            .1;
         CounterWidget {
             count: 0,
             stack: widget::vstack::VStack::new(widgets),
@@ -32,17 +35,18 @@ impl CounterWidget {
 }
 
 impl Widget for CounterWidget {
+    fn message(&mut self, id_path: &[Id], event: Box<dyn Any>) -> EventResult<()> {
+        println!("message");
+        self.count += 1;
+
+        let label: &mut TextWidget = self.stack.children_mut()[0].downcast_mut().unwrap();
+        label.set_text(format!("Count: {}", self.count));
+        // label.update(cx); - Cannot call
+
+        EventResult::RequestRebuild
+    }
+
     fn event(&mut self, cx: &mut EventCx, event: &RawEvent) {
-        let button_clicked = false; // Need a callback for this
-
-        if button_clicked {
-            self.count += 1;
-
-            let label: &mut TextWidget = self.stack.children_mut()[0].downcast_mut().unwrap();
-            label.set_text(format!("Count: {}", self.count));
-            // label.update(cx); - Cannot call
-        }
-
         self.stack.event(cx, event);
     }
 
@@ -77,7 +81,7 @@ impl View<(), ()> for CounterWidgetView {
     type Element = CounterWidget;
 
     fn build(&self, cx: &mut Cx) -> (Id, Self::State, Self::Element) {
-        let (id, element) = cx.with_new_id(|_| CounterWidget::new());
+        let (id, element) = cx.with_new_id(|cx| CounterWidget::new(cx));
         (id, (), element)
     }
 
@@ -96,10 +100,11 @@ impl View<(), ()> for CounterWidgetView {
         &self,
         _id_path: &[Id],
         _state: &mut Self::State,
+        element: &mut Self::Element,
         _event: Box<dyn Any>,
         _app_state: &mut (),
     ) -> EventResult<()> {
-        EventResult::Nop
+        self.element.message(event)
     }
 }
 

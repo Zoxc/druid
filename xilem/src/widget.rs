@@ -36,6 +36,10 @@ use self::align::SingleAlignment;
 
 /// A basic widget trait.
 pub trait Widget {
+    fn message(&mut self, id_path: &[Id], event: Box<dyn Any>) -> EventResult<()> {
+        EventResult::Nop
+    }
+
     fn event(&mut self, cx: &mut EventCx, event: &RawEvent);
 
     /// Propagate a lifecycle event.

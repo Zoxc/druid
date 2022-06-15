@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
+/*
 pub mod adapt;
 pub mod any_view;
 pub mod button;
@@ -20,7 +20,7 @@ pub mod memoize;
 pub mod text;
 pub mod use_state;
 pub mod vstack;
-
+ */
 use std::any::Any;
 
 use crate::{
@@ -74,6 +74,7 @@ pub trait View<T, A = ()> {
         &self,
         id_path: &[Id],
         state: &mut Self::State,
+        element: &mut Self::Element,
         event: Box<dyn Any>,
         app_state: &mut T,
     ) -> EventResult<A>;
