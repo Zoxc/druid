@@ -29,9 +29,6 @@ pub enum EventResult<A> {
     /// The event handler received a change request that requests a rebuild.
     #[allow(unused)]
     RequestRebuild,
-    /// The event handler received a change request that requests an update of the widget tree.
-    #[allow(unused)]
-    RequestUpdate,
     /// The event handler discarded the event.
     #[allow(unused)]
     Nop,
@@ -48,7 +45,6 @@ impl<A> EventResult<A> {
         match self {
             EventResult::Action(a) => EventResult::Action(f(a)),
             EventResult::RequestRebuild => EventResult::RequestRebuild,
-            EventResult::RequestUpdate => EventResult::RequestUpdate,
             EventResult::Stale => EventResult::Stale,
             EventResult::Nop => EventResult::Nop,
         }
