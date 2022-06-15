@@ -23,7 +23,7 @@ mod event;
 mod id;
 mod view;
 mod view_seq;
-mod widget;
+pub mod widget;
 
 pub use app::App;
 pub use app_main::AppLauncher;
@@ -33,5 +33,8 @@ pub use view::layout_observer::LayoutObserver;
 pub use view::memoize::Memoize;
 pub use view::vstack::v_stack;
 pub use view::View;
+pub use view::Cx;
+pub use event::EventResult;
+pub use id::{Id, IdPath};
 pub use widget::align::{AlignmentAxis, AlignmentProxy, HorizAlignment, VertAlignment};
 pub use widget::Widget;
