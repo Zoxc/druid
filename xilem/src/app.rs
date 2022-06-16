@@ -145,6 +145,8 @@ where
                 self.state.as_mut().unwrap(),
                 element,
             );
+            println!("app-changed:{}", changed);
+
             if changed {
                 self.root_pod.as_mut().unwrap().request_update();
             }

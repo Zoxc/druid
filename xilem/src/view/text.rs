@@ -36,6 +36,7 @@ impl<T, A> View<T, A> for String {
         _state: &mut Self::State,
         element: &mut Self::Element,
     ) -> bool {
+        println!("Rebuild String `{}` vs. `{}`", prev, self);
         if prev != self {
             element.set_text(self.clone());
             true

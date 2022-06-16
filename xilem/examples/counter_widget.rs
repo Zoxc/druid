@@ -98,6 +98,7 @@ impl Widget for CounterWidget {
     }
 
     fn update(&mut self, cx: &mut UpdateCx) {
+        println!("uodate CounterWidget");
         self.stack.update(cx);
     }
 
@@ -189,8 +190,8 @@ where
             &mut self.logic_state,
         );
         let view = (self.view_tree_builder)(&mut self.logic_state);
-        let changed = self.view.rebuild(
-            cx,
+        let changed = view.rebuild(
+            cx, // Could cache the path to the view in `new` to avoid passing `Cx`
             &self.view,
             &mut self.id,
             &mut self.view_state,
@@ -208,11 +209,14 @@ where
         );
         if changed {
             self.element.request_update();
+            EventResult::RequestRebuild
+        } else {
+            result
         }
-        result
     }
 
     fn update(&mut self, cx: &mut UpdateCx) {
+        println!("update ViewAsWidget",);
         self.element.update(cx);
     }
 
@@ -282,6 +286,7 @@ impl<T: Widget> View<(), ()> for WidgetAsView<T> {
         //let id_path = &id_path[1..];
         let result = element.message(cx, id_path, event);
         if let EventResult::RequestRebuild = result {
+            // Request a rebuild so element.update can be called.
             *state = true;
         }
         result

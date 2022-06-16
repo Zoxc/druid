@@ -75,7 +75,13 @@ impl Widget for VStack {
             .unwrap()
             .0;
 
-        cx.with_id(hd, |cx| self.children[child].widget.message(cx, tl, event))
+        let result = cx.with_id(hd, |cx| self.children[child].widget.message(cx, tl, event));
+
+        if let EventResult::RequestRebuild = result {
+            self.children[child].request_update();
+        }
+
+        result
     }
 
     fn event(&mut self, cx: &mut EventCx, event: &RawEvent) {
