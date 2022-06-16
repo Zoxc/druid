@@ -139,6 +139,7 @@ struct ViewAsWidget<S, V: View<S>> {
     view: V,
     element: Pod,
     id: Id,
+    cx: Cx,
     widget_id: Id,
 }
 
@@ -152,6 +153,7 @@ where
         println!("ViewAsWidget widget_id:{:?}, id:{:?}", widget_id, id);
         let element = Pod::new(element);
         ViewAsWidget {
+            cx: cx.clone(),
             view_tree_builder,
             view,
             view_state,
@@ -181,43 +183,40 @@ where
             self.logic_state,
             self.view
         );
-        let result = self.view.event(
-            cx,
-            &id_path[1..],
-            &mut self.view_state,
-            self.element.downcast_mut().unwrap(),
-            event,
-            &mut self.logic_state,
-        );
-        let view = (self.view_tree_builder)(&mut self.logic_state);
-        let changed = view.rebuild(
-            cx, // Could cache the path to the view in `new` to avoid passing `Cx`
-            &self.view,
-            &mut self.id,
-            &mut self.view_state,
-            self.element.downcast_mut().unwrap(),
-        );
-        self.view = view;
-        println!(
-            "message ViewAsWidget root:{:?}, path:{:?} state:{:?} result:{:?} changed:{} view:{:?}",
-            cx.id_path(),
-            id_path,
-            self.logic_state,
-            result,
-            changed,
-            self.view
-        );
-        if changed {
-            self.element.request_update();
-            EventResult::RequestRebuild
-        } else {
-            result
-        }
+        let result = cx.with_id(self.widget_id, |cx| {
+            self.view.event(
+                cx,
+                &id_path[1..],
+                &mut self.view_state,
+                self.element.downcast_mut().unwrap(),
+                event,
+                &mut self.logic_state,
+            )
+        });
+
+        // We need to always rebuild in case the event changed some state
+        self.element.request_update();
+        EventResult::RequestRebuild
     }
 
     fn update(&mut self, cx: &mut UpdateCx) {
         println!("update ViewAsWidget",);
-        self.element.update(cx);
+
+        let view = (self.view_tree_builder)(&mut self.logic_state);
+        let changed = self.cx.with_id(self.widget_id, |cx| {
+            view.rebuild(
+                cx,
+                &self.view,
+                &mut self.id,
+                &mut self.view_state,
+                self.element.downcast_mut().unwrap(),
+            )
+        });
+        self.view = view;
+
+        if changed {
+            self.element.update(cx);
+        }
     }
 
     fn event(&mut self, cx: &mut EventCx, event: &RawEvent) {
