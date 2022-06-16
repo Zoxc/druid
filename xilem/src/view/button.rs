@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::any::Any;
+use std::fmt::Debug;
 
 use crate::{event::EventResult, id::Id};
 
@@ -22,6 +23,12 @@ pub struct Button<T, A> {
     label: String,
     // consider not boxing
     callback: Box<dyn Fn(&mut T) -> A>,
+}
+
+impl<T, A> Debug for Button<T, A> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Button {{ label: {}}}", self.label)
+    }
 }
 
 pub fn button<T, A>(
@@ -69,6 +76,7 @@ impl<T, A> View<T, A> for Button<T, A> {
 
     fn event(
         &self,
+        _cx: &mut Cx,
         _id_path: &[crate::id::Id],
         _state: &mut Self::State,
         _element: &mut Self::Element,

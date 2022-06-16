@@ -122,14 +122,19 @@ where
     pub fn run_app_logic(&mut self) {
         if let Some(element) = self.root_pod.as_mut().unwrap().downcast_mut() {
             for event in self.events.drain(..) {
+                println!("event-path:{:?}", event.id_path);
+
                 let id_path = &event.id_path[1..];
-                self.view.as_ref().unwrap().event(
-                    id_path,
-                    self.state.as_mut().unwrap(),
-                    element,
-                    event.body,
-                    &mut self.data,
-                );
+                self.cx.with_id(event.id_path[0], |cx| {
+                    self.view.as_ref().unwrap().event(
+                        cx,
+                        id_path,
+                        self.state.as_mut().unwrap(),
+                        element,
+                        event.body,
+                        &mut self.data,
+                    );
+                });
             }
             // Re-rendering should be more lazy.
             let view = (self.app_logic)(&mut self.data);

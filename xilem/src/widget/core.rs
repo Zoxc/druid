@@ -23,7 +23,7 @@ use druid_shell::{
     piet::RenderContext,
 };
 
-use crate::Widget;
+use crate::{Id, Widget};
 
 use super::{
     align::{
@@ -219,6 +219,10 @@ impl Pod {
             );
             cx.widget_state.merge_up(&mut self.state);
         }
+    }
+
+    pub fn id(&self) -> Option<Id> {
+        self.widget.id()
     }
 
     pub fn lifecycle(&mut self, cx: &mut LifeCycleCx, event: &LifeCycle) {

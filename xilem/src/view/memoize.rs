@@ -73,15 +73,21 @@ impl<T, A, D: PartialEq + Clone + 'static, V: View<T, A>, F: Fn(&D) -> V> View<T
 
     fn event(
         &self,
+        cx: &mut Cx,
         id_path: &[Id],
         state: &mut Self::State,
         element: &mut Self::Element,
         event: Box<dyn Any>,
         app_state: &mut T,
     ) -> EventResult<A> {
-        let r = state
-            .view
-            .event(id_path, &mut state.view_state, element, event, app_state);
+        let r = state.view.event(
+            cx,
+            id_path,
+            &mut state.view_state,
+            element,
+            event,
+            app_state,
+        );
         if matches!(r, EventResult::RequestRebuild) {
             state.dirty = true;
         }

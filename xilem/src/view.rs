@@ -72,6 +72,7 @@ pub trait View<T, A = ()> {
     /// of ids beginning at a child of this view.
     fn event(
         &self,
+        cx: &mut Cx,
         id_path: &[Id],
         state: &mut Self::State,
         element: &mut Self::Element,

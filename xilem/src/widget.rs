@@ -26,7 +26,7 @@ use std::ops::{Deref, DerefMut};
 
 use druid_shell::kurbo::Size;
 
-use crate::{EventResult, Id};
+use crate::{Cx, EventResult, Id};
 
 pub use self::contexts::{AlignCx, CxState, EventCx, LayoutCx, LifeCycleCx, PaintCx, UpdateCx};
 pub use self::core::Pod;
@@ -37,7 +37,11 @@ use self::align::SingleAlignment;
 
 /// A basic widget trait.
 pub trait Widget {
-    fn message(&mut self, id_path: &[Id], event: Box<dyn Any>) -> EventResult<()> {
+    fn id(&self) -> Option<Id> {
+        None
+    }
+
+    fn message(&mut self, cx: &mut Cx, id_path: &[Id], event: Box<dyn Any>) -> EventResult<()> {
         EventResult::Nop
     }
 
@@ -89,6 +93,14 @@ impl<W: Widget + 'static> AnyWidget for W {
 }
 
 impl Widget for Box<dyn AnyWidget> {
+    fn id(&self) -> Option<Id> {
+        self.deref().id()
+    }
+
+    fn message(&mut self, cx: &mut Cx, id_path: &[Id], event: Box<dyn Any>) -> EventResult<()> {
+        self.deref_mut().message(cx, id_path, event)
+    }
+
     fn event(&mut self, cx: &mut EventCx, event: &RawEvent) {
         self.deref_mut().event(cx, event);
     }

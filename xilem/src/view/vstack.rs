@@ -18,6 +18,7 @@ use crate::{event::EventResult, id::Id, view_seq::ViewSequence, widget::WidgetTu
 
 use super::{Cx, View};
 
+#[derive(Debug)]
 pub struct VStack<T, A, VT: ViewSequence<T, A>> {
     children: VT,
     phantom: PhantomData<(T, A)>,
@@ -64,13 +65,19 @@ where
 
     fn event(
         &self,
+        cx: &mut Cx,
         id_path: &[Id],
         state: &mut Self::State,
         element: &mut Self::Element,
         event: Box<dyn Any>,
         app_state: &mut T,
     ) -> EventResult<A> {
+        println!(
+            "event VStack-view root:{:?}, path:{:?} ",
+            cx.id_path(),
+            id_path
+        );
         self.children
-            .event(id_path, state, element.children_mut(), event, app_state)
+            .event(cx, id_path, state, element.children_mut(), event, app_state)
     }
 }

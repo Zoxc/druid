@@ -38,6 +38,7 @@ pub trait ViewSequence<T, A> {
 
     fn event(
         &self,
+        cx: &mut Cx,
         id_path: &[Id],
         state: &mut Self::State,
         els: &mut Vec<Pod>,
@@ -84,6 +85,7 @@ macro_rules! impl_view_tuple {
 
             fn event(
                 &self,
+                cx: &mut Cx,
                 id_path: &[Id],
                 state: &mut Self::State,
                 els: &mut Vec<Pod>,
@@ -92,12 +94,14 @@ macro_rules! impl_view_tuple {
             ) -> EventResult<A> {
                 let hd = id_path[0];
                 let tl = &id_path[1..];
-                $(
-                if hd == state.$n[$i] {
-                    self.$i.event(tl, &mut state.$i, els[$i].downcast_mut().unwrap(), event, app_state)
-                } else )* {
-                    crate::event::EventResult::Stale
-                }
+                cx.with_id(hd, |cx| {
+                    $(
+                    if hd == state.$n[$i] {
+                        self.$i.event(cx, tl, &mut state.$i, els[$i].downcast_mut().unwrap(), event, app_state)
+                    } else )* {
+                        crate::event::EventResult::Stale
+                    }
+                })
             }
         }
     }
