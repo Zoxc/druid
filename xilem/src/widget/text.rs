@@ -52,7 +52,6 @@ impl Widget for TextWidget {
     fn lifecycle(&mut self, _cx: &mut LifeCycleCx, _event: &LifeCycle) {}
 
     fn update(&mut self, cx: &mut UpdateCx) {
-        println!("update TextWidget",);
         // All changes potentially require layout. Note: we could be finer
         // grained, maybe color changes wouldn't.
         cx.request_layout();

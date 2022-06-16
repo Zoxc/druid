@@ -52,19 +52,7 @@ impl Widget for VStack {
         self.id
     }
 
-    fn message(
-        &mut self,
-        cx: &mut Cx,
-        id_path: &[crate::Id],
-        event: Box<dyn std::any::Any>,
-    ) -> EventResult<()> {
-        println!(
-            "VStack message root:{:?}, path:{:?} children:{:?}",
-            cx.id_path(),
-            id_path,
-            self.ids
-        );
-
+    fn message(&mut self, id_path: &[crate::Id], event: Box<dyn std::any::Any>) -> EventResult<()> {
         let hd = id_path[0];
         let tl = &id_path[1..];
         let child = self
@@ -75,7 +63,7 @@ impl Widget for VStack {
             .unwrap()
             .0;
 
-        let result = cx.with_id(hd, |cx| self.children[child].widget.message(cx, tl, event));
+        let result = self.children[child].widget.message(tl, event);
 
         if let EventResult::RequestRebuild = result {
             self.children[child].request_update();

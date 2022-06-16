@@ -29,7 +29,6 @@ pub struct Adapt<T, A, U, B, F: Fn(&mut T, AdaptThunk<U, B, C>) -> EventResult<A
 /// The closure passed to Adapt should call this thunk with the child's
 /// app state.
 pub struct AdaptThunk<'a, U, B, C: View<U, B>> {
-    cx: &'a mut Cx,
     child: &'a C,
     state: &'a mut C::State,
     element: &'a mut C::Element,
@@ -52,7 +51,6 @@ impl<T, A, U, B, F: Fn(&mut T, AdaptThunk<U, B, C>) -> EventResult<A>, C: View<U
 impl<'a, U, B, C: View<U, B>> AdaptThunk<'a, U, B, C> {
     pub fn call(self, app_state: &mut U) -> EventResult<B> {
         self.child.event(
-            self.cx,
             self.id_path,
             self.state,
             self.element,
@@ -86,7 +84,6 @@ impl<T, A, U, B, F: Fn(&mut T, AdaptThunk<U, B, C>) -> EventResult<A>, C: View<U
 
     fn event(
         &self,
-        cx: &mut Cx,
         id_path: &[Id],
         state: &mut Self::State,
         element: &mut Self::Element,
@@ -94,7 +91,6 @@ impl<T, A, U, B, F: Fn(&mut T, AdaptThunk<U, B, C>) -> EventResult<A>, C: View<U
         app_state: &mut T,
     ) -> EventResult<A> {
         let thunk = AdaptThunk {
-            cx,
             child: &self.child,
             state,
             element,

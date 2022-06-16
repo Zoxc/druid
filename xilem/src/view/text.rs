@@ -36,7 +36,6 @@ impl<T, A> View<T, A> for String {
         _state: &mut Self::State,
         element: &mut Self::Element,
     ) -> bool {
-        println!("Rebuild String `{}` vs. `{}`", prev, self);
         if prev != self {
             element.set_text(self.clone());
             true
@@ -47,7 +46,6 @@ impl<T, A> View<T, A> for String {
 
     fn event(
         &self,
-        cx: &mut Cx,
         _id_path: &[crate::id::Id],
         _state: &mut Self::State,
         _element: &mut Self::Element,

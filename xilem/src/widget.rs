@@ -41,7 +41,7 @@ pub trait Widget {
         None
     }
 
-    fn message(&mut self, cx: &mut Cx, id_path: &[Id], event: Box<dyn Any>) -> EventResult<()> {
+    fn message(&mut self, id_path: &[Id], event: Box<dyn Any>) -> EventResult<()> {
         EventResult::Nop
     }
 
@@ -97,8 +97,8 @@ impl Widget for Box<dyn AnyWidget> {
         self.deref().id()
     }
 
-    fn message(&mut self, cx: &mut Cx, id_path: &[Id], event: Box<dyn Any>) -> EventResult<()> {
-        self.deref_mut().message(cx, id_path, event)
+    fn message(&mut self, id_path: &[Id], event: Box<dyn Any>) -> EventResult<()> {
+        self.deref_mut().message(id_path, event)
     }
 
     fn event(&mut self, cx: &mut EventCx, event: &RawEvent) {

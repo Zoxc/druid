@@ -76,7 +76,6 @@ impl<T, A> View<T, A> for Button<T, A> {
 
     fn event(
         &self,
-        _cx: &mut Cx,
         _id_path: &[crate::id::Id],
         _state: &mut Self::State,
         _element: &mut Self::Element,

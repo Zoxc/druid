@@ -65,19 +65,13 @@ where
 
     fn event(
         &self,
-        cx: &mut Cx,
         id_path: &[Id],
         state: &mut Self::State,
         element: &mut Self::Element,
         event: Box<dyn Any>,
         app_state: &mut T,
     ) -> EventResult<A> {
-        println!(
-            "event VStack-view root:{:?}, path:{:?} ",
-            cx.id_path(),
-            id_path
-        );
         self.children
-            .event(cx, id_path, state, element.children_mut(), event, app_state)
+            .event(id_path, state, element.children_mut(), event, app_state)
     }
 }
