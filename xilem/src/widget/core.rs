@@ -45,7 +45,10 @@ bitflags! {
         const IS_ACTIVE = 16;
         const HAS_ACTIVE = 32;
 
-        const UPWARD_FLAGS = Self::REQUEST_LAYOUT.bits | Self::REQUEST_PAINT.bits | Self::HAS_ACTIVE.bits;
+        const UPWARD_FLAGS = Self::REQUEST_UPDATE.bits
+            | Self::REQUEST_LAYOUT.bits
+            | Self::REQUEST_PAINT.bits
+            | Self::HAS_ACTIVE.bits;
         const INIT_FLAGS = Self::REQUEST_UPDATE.bits | Self::REQUEST_LAYOUT.bits | Self::REQUEST_PAINT.bits;
     }
 }
@@ -210,6 +213,7 @@ impl Pod {
             let mut inner_cx = EventCx {
                 cx_state: cx.cx_state,
                 widget_state: &mut self.state,
+                events: cx.events,
             };
             self.widget
                 .event(&mut inner_cx, modified_event.as_ref().unwrap_or(event));

@@ -40,6 +40,7 @@ pub struct CxState<'a> {
 }
 
 pub struct EventCx<'a, 'b> {
+    pub(crate) events: &'a mut Vec<Event>,
     pub(crate) cx_state: &'a mut CxState<'b>,
     pub(crate) widget_state: &'a mut WidgetState,
 }
@@ -86,15 +87,32 @@ impl<'a> CxState<'a> {
 }
 
 impl<'a, 'b> EventCx<'a, 'b> {
-    pub(crate) fn new(cx_state: &'a mut CxState<'b>, root_state: &'a mut WidgetState) -> Self {
+    pub(crate) fn new(
+        cx_state: &'a mut CxState<'b>,
+        root_state: &'a mut WidgetState,
+        events: &'a mut Vec<Event>,
+    ) -> Self {
         EventCx {
             cx_state,
             widget_state: root_state,
+            events,
+        }
+    }
+
+    pub fn with_event_sink<'e, 's>(&'s mut self, events: &'e mut Vec<Event>) -> EventCx<'e, 'b>
+    where
+        'a: 'e,
+        's: 'e,
+    {
+        EventCx {
+            cx_state: self.cx_state,
+            widget_state: self.widget_state,
+            events,
         }
     }
 
     pub fn add_event(&mut self, event: Event) {
-        self.cx_state.events.push(event);
+        self.events.push(event);
     }
 
     pub fn set_active(&mut self, is_active: bool) {
@@ -103,6 +121,10 @@ impl<'a, 'b> EventCx<'a, 'b> {
 
     pub fn is_hot(&self) -> bool {
         self.widget_state.flags.contains(PodFlags::IS_HOT)
+    }
+
+    pub fn request_update(&mut self) {
+        self.widget_state.flags |= PodFlags::REQUEST_UPDATE;
     }
 }
 

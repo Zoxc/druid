@@ -26,7 +26,7 @@ use std::ops::{Deref, DerefMut};
 
 use druid_shell::kurbo::Size;
 
-use self::contexts::LifeCycleCx;
+pub use self::contexts::LifeCycleCx;
 pub use self::contexts::{AlignCx, CxState, EventCx, LayoutCx, PaintCx, UpdateCx};
 pub use self::core::Pod;
 pub(crate) use self::core::{PodFlags, WidgetState};

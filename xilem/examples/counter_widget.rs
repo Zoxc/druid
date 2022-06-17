@@ -3,7 +3,7 @@ use std::any::Any;
 use std::fmt::Debug;
 use xilem::widget::align::SingleAlignment;
 use xilem::widget::AlignCx;
-use xilem::{button, v_stack, App, AppLauncher, LayoutObserver, View};
+use xilem::{button, v_stack, App, AppLauncher, View};
 use xilem::{
     widget::{
         self, text::TextWidget, EventCx, LayoutCx, LifeCycle, LifeCycleCx, PaintCx, Pod, RawEvent,
@@ -12,15 +12,14 @@ use xilem::{
     Cx, EventResult, Id, Widget,
 };
 
-pub fn both_as_widget(cx: &mut Cx) -> impl Widget {
-    widget::vstack::VStack::with_id(cx, |cx| {
+pub fn both_as_widget() -> impl Widget {
+    widget::vstack::VStack::new({
         let reactive_counter = Pod::new(ViewAsWidget::new(
-            cx,
             ReactiveCounter::default(),
             reactive_counter,
         ));
         let sep = Pod::new(TextWidget::new("--------------------------".to_string()));
-        let counter = Pod::new(CounterWidget::new(cx));
+        let counter = Pod::new(CounterWidget::new());
         vec![reactive_counter, sep, counter]
     })
 }
@@ -40,47 +39,44 @@ pub fn main() {
 
 // Traditional GUI style counter
 struct CounterWidget {
-    id: Id,
     count: u32,
     stack: widget::vstack::VStack,
 }
 
 impl CounterWidget {
-    pub fn new(cx: &mut Cx) -> Self {
-        let (id, widgets) = cx.with_new_id(|cx| {
-            vec![
-                Pod::new(TextWidget::new(format!("Count: {}", 0))),
-                Pod::new(widget::button::Button::new(
-                    cx.id_path(),
-                    "Increase".to_string(),
-                )),
-            ]
-        });
+    fn new() -> Self {
+        let widgets = vec![
+            Pod::new(TextWidget::new(format!("Count: {}", 0))),
+            Pod::new(widget::button::Button::new(
+                &Vec::new(),
+                "Increase".to_string(),
+            )),
+        ];
         CounterWidget {
-            id,
             count: 0,
             stack: widget::vstack::VStack::new(widgets),
         }
     }
-}
 
-impl Widget for CounterWidget {
-    fn id(&self) -> Option<Id> {
-        Some(self.id)
-    }
-
-    fn message(&mut self, _id_path: &[Id], _event: Box<dyn Any>) -> EventResult<()> {
+    fn click(&mut self) {
         self.count += 1;
 
         let label = &mut self.stack.children_mut()[0];
         label.request_update();
         let label: &mut TextWidget = label.downcast_mut().unwrap();
         label.set_text(format!("Count: {}", self.count));
-        EventResult::RequestRebuild
     }
+}
 
+impl Widget for CounterWidget {
     fn event(&mut self, cx: &mut EventCx, event: &RawEvent) {
-        self.stack.event(cx, event);
+        let mut events = Vec::new();
+        self.stack
+            .event(&mut cx.with_event_sink(&mut events), event);
+        if !events.is_empty() {
+            self.click();
+            cx.request_update();
+        }
     }
 
     fn lifecycle(&mut self, cx: &mut LifeCycleCx, event: &LifeCycle) {
@@ -116,7 +112,6 @@ fn reactive_counter(data: &mut ReactiveCounter) -> impl View<ReactiveCounter> {
         button("Increase".to_string(), |data: &mut ReactiveCounter| {
             data.count += 1
         }),
-        LayoutObserver::new(|size| format!("Layout size: {:?}", size)),
     ))
 }
 
@@ -128,70 +123,67 @@ struct ViewAsWidget<S, V: View<S>> {
     view: V,
     element: Pod,
     id: Id,
-    cx: Cx,
-    widget_id: Id,
     rebuild_need: bool,
+    cx: Cx,
 }
 
 impl<S, V: View<S>> ViewAsWidget<S, V>
 where
     V::Element: Widget + 'static,
 {
-    fn new(cx: &mut Cx, mut logic_state: S, view_tree_builder: fn(&mut S) -> V) -> Self {
+    fn new(mut logic_state: S, view_tree_builder: fn(&mut S) -> V) -> Self {
+        let mut cx = Cx::new();
         let view = view_tree_builder(&mut logic_state);
-        let (widget_id, (id, view_state, element)) = cx.with_new_id(|cx| view.build(cx));
+        let (id, view_state, element) = view.build(&mut cx);
         let element = Pod::new(element);
         ViewAsWidget {
-            cx: cx.clone(),
             view_tree_builder,
             view,
             view_state,
             logic_state,
             id,
-            widget_id,
             element,
             rebuild_need: false,
+            cx,
         }
     }
 }
+/*
+fn id(&self) -> Option<Id> {
+    Some(self.widget_id)
+}
 
+fn message(&mut self, id_path: &[Id], event: Box<dyn Any>) -> EventResult<()> {
+    self.view.event(
+        &id_path[1..],
+        &mut self.view_state,
+        self.element.downcast_mut().unwrap(),
+        event,
+        &mut self.logic_state,
+    );
+
+    // We need to always rebuild in case the event changed some state
+    self.element.request_update();
+    self.rebuild_need = true;
+    EventResult::RequestRebuild
+}
+ */
 impl<S, V: View<S>> Widget for ViewAsWidget<S, V>
 where
     V::Element: Widget + 'static,
 {
-    fn id(&self) -> Option<Id> {
-        Some(self.widget_id)
-    }
-
-    fn message(&mut self, id_path: &[Id], event: Box<dyn Any>) -> EventResult<()> {
-        self.view.event(
-            &id_path[1..],
-            &mut self.view_state,
-            self.element.downcast_mut().unwrap(),
-            event,
-            &mut self.logic_state,
-        );
-
-        // We need to always rebuild in case the event changed some state
-        self.element.request_update();
-        self.rebuild_need = true;
-        EventResult::RequestRebuild
-    }
-
     fn update(&mut self, cx: &mut UpdateCx) {
         if self.rebuild_need {
             self.rebuild_need = false;
 
             let view = (self.view_tree_builder)(&mut self.logic_state);
-            let changed = self.cx.with_id(self.widget_id, |cx| {
-                view.rebuild(
-                    cx,
-                    &self.view,
-                    &mut self.id,
-                    &mut self.view_state,
-                    self.element.downcast_mut().unwrap(),
-                )
-            });
+            let changed = view.rebuild(
+                &mut self.cx,
+                &self.view,
+                &mut self.id,
+                &mut self.view_state,
+                self.element.downcast_mut().unwrap(),
+            );
 
             self.view = view;
 
@@ -202,7 +194,22 @@ where
     }
 
     fn event(&mut self, cx: &mut EventCx, event: &RawEvent) {
-        self.element.event(cx, event);
+        let mut events = Vec::new();
+        self.element
+            .event(&mut cx.with_event_sink(&mut events), event);
+
+        for event in events {
+            self.view.event(
+                &event.id_path[1..],
+                &mut self.view_state,
+                event.body,
+                &mut self.logic_state,
+            );
+        }
+
+        // We need to always rebuild in case the event changed some state
+        self.rebuild_need = true;
+        self.element.request_update();
     }
 
     fn lifecycle(&mut self, cx: &mut LifeCycleCx, event: &LifeCycle) {
@@ -227,7 +234,7 @@ where
 }
 
 // Use a widget as a view
-struct WidgetAsView<T>(fn(&mut Cx) -> T);
+struct WidgetAsView<T>(fn() -> T);
 
 impl<T: Widget> View<(), ()> for WidgetAsView<T> {
     type State = bool;
@@ -235,7 +242,7 @@ impl<T: Widget> View<(), ()> for WidgetAsView<T> {
     type Element = T;
 
     fn build(&self, cx: &mut Cx) -> (Id, Self::State, Self::Element) {
-        let (id, element) = cx.with_new_id(|cx| self.0(cx));
+        let (id, element) = cx.with_new_id(|_| self.0());
         (id, false, element)
     }
 
@@ -252,17 +259,11 @@ impl<T: Widget> View<(), ()> for WidgetAsView<T> {
 
     fn event(
         &self,
-        id_path: &[Id],
-        state: &mut Self::State,
-        element: &mut Self::Element,
-        event: Box<dyn Any>,
+        _id_path: &[Id],
+        _state: &mut Self::State,
+        _event: Box<dyn Any>,
         _app_state: &mut (),
     ) -> EventResult<()> {
-        let result = element.message(&id_path[1..], event);
-        if let EventResult::RequestRebuild = result {
-            // Request a rebuild so element.update can be called.
-            *state = true;
-        }
-        result
+        panic!()
     }
 }
