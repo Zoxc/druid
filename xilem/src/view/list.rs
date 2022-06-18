@@ -30,6 +30,7 @@ pub struct List<T, A, V, F: Fn(usize) -> V> {
 }
 
 pub struct ListState<T, A, V: View<T, A>> {
+    counter: u64,
     add_req: Vec<usize>,
     remove_req: Vec<usize>,
     items: BTreeMap<usize, ItemState<T, A, V>>,
@@ -68,64 +69,61 @@ where
 
     type Element = crate::widget::list::List;
 
-    fn build(&self, cx: &mut Cx) -> (Id, Self::State, Self::Element) {
-        let (id, element) = cx.with_new_id(|cx| {
-            crate::widget::list::List::new(cx.id_path().clone(), self.n_items, self.item_height)
-        });
+    fn build(&self, cx: &mut Cx) -> (Self::State, Self::Element) {
+        let element =
+            crate::widget::list::List::new(cx.id_path().clone(), self.n_items, self.item_height);
         let state = ListState {
+            counter: 0,
             add_req: Vec::new(),
             remove_req: Vec::new(),
             items: BTreeMap::new(),
         };
-        (id, state, element)
+        (state, element)
     }
 
     fn rebuild(
         &self,
         cx: &mut Cx,
         _prev: &Self,
-        id: &mut Id,
         state: &mut Self::State,
         element: &mut Self::Element,
     ) -> bool {
         // TODO: allow updating of n_items and item_height
         let mut changed = !state.add_req.is_empty() || !state.remove_req.is_empty();
-        cx.with_id(*id, |cx| {
-            for (i, child_state) in &mut state.items {
-                let child_view = (self.callback)(*i);
-                let pod = element.child_mut(*i);
-                let child_element = pod.downcast_mut().unwrap();
-                let child_changed = child_view.rebuild(
-                    cx,
-                    &child_state.view,
-                    &mut child_state.id,
-                    &mut child_state.state,
-                    child_element,
-                );
-                if child_changed {
-                    pod.request_update();
-                }
-                changed |= child_changed;
-                child_state.view = child_view;
+
+        for (i, child_state) in &mut state.items {
+            let child_view = (self.callback)(*i);
+            let pod = element.child_mut(*i);
+            let child_element = pod.downcast_mut().unwrap();
+            let child_changed = cx.with_id(child_state.id, |cx| {
+                child_view.rebuild(cx, &child_state.view, &mut child_state.state, child_element)
+            });
+            if child_changed {
+                pod.request_update();
             }
-            for i in state.add_req.drain(..) {
-                let child_view = (self.callback)(i);
-                let (child_id, child_state, child_element) = child_view.build(cx);
-                element.set_child(i, Pod::new(child_element));
-                state.items.insert(
-                    i,
-                    ItemState {
-                        id: child_id,
-                        view: child_view,
-                        state: child_state,
-                    },
-                );
-            }
-            for i in state.remove_req.drain(..) {
-                element.remove_child(i);
-                state.items.remove(&i);
-            }
-        });
+            changed |= child_changed;
+            child_state.view = child_view;
+        }
+        for i in state.add_req.drain(..) {
+            let child_view = (self.callback)(i);
+            let child_id = Id(state.counter);
+            state.counter += 1;
+            let (child_state, child_element) = cx.with_id(child_id, |cx| child_view.build(cx));
+            element.set_child(i, Pod::new(child_element));
+            state.items.insert(
+                i,
+                ItemState {
+                    id: child_id,
+                    view: child_view,
+                    state: child_state,
+                },
+            );
+        }
+        for i in state.remove_req.drain(..) {
+            element.remove_child(i);
+            state.items.remove(&i);
+        }
+
         changed
     }
 

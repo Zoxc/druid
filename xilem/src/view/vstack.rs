@@ -42,24 +42,21 @@ where
 
     type Element = crate::widget::vstack::VStack;
 
-    fn build(&self, cx: &mut Cx) -> (Id, Self::State, Self::Element) {
-        let (id, (state, elements)) = cx.with_new_id(|cx| self.children.build(cx));
+    fn build(&self, cx: &mut Cx) -> (Self::State, Self::Element) {
+        let (state, elements) = self.children.build(cx);
         let column = crate::widget::vstack::VStack::new(elements);
-        (id, state, column)
+        (state, column)
     }
 
     fn rebuild(
         &self,
         cx: &mut Cx,
         prev: &Self,
-        id: &mut Id,
         state: &mut Self::State,
         element: &mut Self::Element,
     ) -> bool {
-        cx.with_id(*id, |cx| {
-            self.children
-                .rebuild(cx, &prev.children, state, element.children_mut())
-        })
+        self.children
+            .rebuild(cx, &prev.children, state, element.children_mut())
     }
 
     fn event(

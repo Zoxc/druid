@@ -50,14 +50,14 @@ macro_rules! impl_view_tuple {
         impl<T, A, $( $t: View<T, A> ),* > ViewSequence<T, A> for ( $( $t, )* )
             where $( <$t as View<T, A>>::Element: 'static ),*
         {
-            type State = ( $( $t::State, )* [Id; $n]);
+            type State = ( $( $t::State, )* );
 
             type Elements = ( $( $t::Element, )* );
 
             fn build(&self, cx: &mut Cx) -> (Self::State, Vec<Pod>) {
-                let b = ( $( self.$i.build(cx), )* );
-                let state = ( $( b.$i.1, )* [ $( b.$i.0 ),* ]);
-                let els = vec![ $( Pod::new(b.$i.2) ),* ];
+                let b = ( $( cx.with_id(Id($i), |cx| self.$i.build(cx)),  )* );
+                let state = ( $( b.$i.0, )* );
+                let els = vec![ $( Pod::new(b.$i.1) ),* ];
                 (state, els)
             }
 
@@ -70,13 +70,15 @@ macro_rules! impl_view_tuple {
             ) -> bool {
                 let mut changed = false;
                 $(
-                if self.$i
-                    .rebuild(cx, &prev.$i, &mut state.$n[$i], &mut state.$i,
-                        els[$i].downcast_mut().unwrap())
-                {
-                    els[$i].request_update();
-                    changed = true;
-                }
+                cx.with_id(Id($i), |cx| {
+                    if self.$i
+                        .rebuild(cx, &prev.$i, &mut state.$i,
+                            els[$i].downcast_mut().unwrap())
+                    {
+                        els[$i].request_update();
+                        changed = true;
+                    }
+                });
                 )*
                 changed
             }
@@ -90,11 +92,12 @@ macro_rules! impl_view_tuple {
             ) -> EventResult<A> {
                 let hd = id_path[0];
                 let tl = &id_path[1..];
-                $(
-                if hd == state.$n[$i] {
-                    self.$i.event(tl, &mut state.$i, event, app_state)
-                } else )* {
-                    crate::event::EventResult::Stale
+
+                match hd {
+                    $(
+                        Id($i) => self.$i.event(tl, &mut state.$i, event, app_state),
+                    )*
+                    _ => crate::event::EventResult::Stale
                 }
             }
         }

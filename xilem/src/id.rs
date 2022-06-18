@@ -12,24 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::num::NonZeroU64;
-
+/// A stable identifier for a view tree path segment.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Hash)]
-/// A stable identifier for an element.
-pub struct Id(NonZeroU64);
+pub struct Id(pub u64);
 
 pub type IdPath = Vec<Id>;
-
-impl Id {
-    /// Allocate a new, unique `Id`.
-    pub fn next() -> Id {
-        use druid_shell::Counter;
-        static WIDGET_ID_COUNTER: Counter = Counter::new();
-        Id(WIDGET_ID_COUNTER.next_nonzero())
-    }
-
-    #[allow(unused)]
-    pub fn to_raw(self) -> u64 {
-        self.0.into()
-    }
-}

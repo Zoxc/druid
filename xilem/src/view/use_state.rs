@@ -58,28 +58,27 @@ where
 
     type Element = V::Element;
 
-    fn build(&self, cx: &mut Cx) -> (Id, Self::State, Self::Element) {
+    fn build(&self, cx: &mut Cx) -> (Self::State, Self::Element) {
         let mut state = (self.f_init)();
         let view = (self.f)(&mut state);
-        let (id, view_state, element) = view.build(cx);
+        let (view_state, element) = view.build(cx);
         let my_state = UseStateState {
             state: Some(state),
             view,
             view_state,
         };
-        (id, my_state, element)
+        (my_state, element)
     }
 
     fn rebuild(
         &self,
         cx: &mut Cx,
         _prev: &Self,
-        id: &mut Id,
         state: &mut Self::State,
         element: &mut Self::Element,
     ) -> bool {
         let view = (self.f)(state.state.as_mut().unwrap());
-        let changed = view.rebuild(cx, &state.view, id, &mut state.view_state, element);
+        let changed = view.rebuild(cx, &state.view, &mut state.view_state, element);
         state.view = view;
         changed
     }

@@ -32,7 +32,7 @@ use super::{Cx, View};
 pub trait AnyView<T, A = ()> {
     fn as_any(&self) -> &dyn Any;
 
-    fn dyn_build(&self, cx: &mut Cx) -> (Id, Box<dyn Any + Send>, Box<dyn AnyWidget>);
+    fn dyn_build(&self, cx: &mut Cx) -> (Box<dyn Any + Send>, Box<dyn AnyWidget>);
 
     fn dyn_rebuild(
         &self,
@@ -61,9 +61,9 @@ where
         self
     }
 
-    fn dyn_build(&self, cx: &mut Cx) -> (Id, Box<dyn Any + Send>, Box<dyn AnyWidget>) {
-        let (id, state, element) = self.build(cx);
-        (id, Box::new(state), Box::new(element))
+    fn dyn_build(&self, cx: &mut Cx) -> (Box<dyn Any + Send>, Box<dyn AnyWidget>) {
+        let (state, element) = self.build(cx);
+        (Box::new(state), Box::new(element))
     }
 
     fn dyn_rebuild(
@@ -77,7 +77,7 @@ where
         if let Some(prev) = prev.as_any().downcast_ref() {
             if let Some(state) = state.downcast_mut() {
                 if let Some(element) = element.deref_mut().as_any_mut().downcast_mut() {
-                    self.rebuild(cx, prev, id, state, element)
+                    cx.with_id(*id, |cx| self.rebuild(cx, prev, state, element))
                 } else {
                     println!("downcast of element failed in dyn_rebuild");
                     false
@@ -87,8 +87,10 @@ where
                 false
             }
         } else {
-            let (new_id, new_state, new_element) = self.build(cx);
-            *id = new_id;
+            // Increase the id for the new build so it will have its own unique IdPath.
+            *id = Id(id.0 + 1);
+            let (new_state, new_element) = cx.with_id(*id, |cx| self.build(cx));
+
             *state = Box::new(new_state);
             *element = Box::new(new_element);
             true
@@ -112,24 +114,25 @@ where
 }
 
 impl<T, A> View<T, A> for Box<dyn AnyView<T, A> + Send> {
-    type State = Box<dyn Any + Send>;
+    type State = (Id, Box<dyn Any + Send>);
 
     type Element = Box<dyn AnyWidget>;
 
-    fn build(&self, cx: &mut Cx) -> (Id, Self::State, Self::Element) {
-        self.deref().dyn_build(cx)
+    fn build(&self, cx: &mut Cx) -> (Self::State, Self::Element) {
+        let id = Id(0);
+        let (state, element) = cx.with_id(id, |cx| self.deref().dyn_build(cx));
+        ((id, state), element)
     }
 
     fn rebuild(
         &self,
         cx: &mut Cx,
         prev: &Self,
-        id: &mut Id,
         state: &mut Self::State,
         element: &mut Self::Element,
     ) -> bool {
         self.deref()
-            .dyn_rebuild(cx, prev.deref(), id, state, element)
+            .dyn_rebuild(cx, prev.deref(), &mut state.0, &mut state.1, element)
     }
 
     fn event(
@@ -139,7 +142,11 @@ impl<T, A> View<T, A> for Box<dyn AnyView<T, A> + Send> {
         event: Box<dyn Any>,
         app_state: &mut T,
     ) -> EventResult<A> {
-        self.deref()
-            .dyn_event(id_path, state.deref_mut(), event, app_state)
+        if id_path[0] == state.0 {
+            self.deref()
+                .dyn_event(&id_path[1..], state.1.deref_mut(), event, app_state)
+        } else {
+            EventResult::Stale
+        }
     }
 }

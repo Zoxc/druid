@@ -61,7 +61,7 @@ impl<T, A, U, B, F: Fn(&mut T, AdaptThunk<U, B, C>) -> EventResult<A> + Send, C:
 
     type Element = C::Element;
 
-    fn build(&self, cx: &mut Cx) -> (Id, Self::State, Self::Element) {
+    fn build(&self, cx: &mut Cx) -> (Self::State, Self::Element) {
         self.child.build(cx)
     }
 
@@ -69,11 +69,10 @@ impl<T, A, U, B, F: Fn(&mut T, AdaptThunk<U, B, C>) -> EventResult<A> + Send, C:
         &self,
         cx: &mut Cx,
         prev: &Self,
-        id: &mut Id,
         state: &mut Self::State,
         element: &mut Self::Element,
     ) -> bool {
-        self.child.rebuild(cx, &prev.child, id, state, element)
+        self.child.rebuild(cx, &prev.child, state, element)
     }
 
     fn event(

@@ -40,35 +40,29 @@ impl<T, A, C: View<T, A>> View<T, A> for ScrollView<T, A, C>
 where
     C::Element: 'static,
 {
-    type State = (Id, C::State);
+    type State = C::State;
 
     type Element = crate::widget::scroll_view::ScrollView;
 
-    fn build(&self, cx: &mut Cx) -> (Id, Self::State, Self::Element) {
-        let (id, (child_id, child_state, child_element)) =
-            cx.with_new_id(|cx| self.child.build(cx));
+    fn build(&self, cx: &mut Cx) -> (Self::State, Self::Element) {
+        let (child_state, child_element) = self.child.build(cx);
         let element = crate::widget::scroll_view::ScrollView::new(child_element);
-        (id, (child_id, child_state), element)
+        (child_state, element)
     }
 
     fn rebuild(
         &self,
         cx: &mut Cx,
         prev: &Self,
-        id: &mut Id,
         state: &mut Self::State,
         element: &mut Self::Element,
     ) -> bool {
-        cx.with_id(*id, |cx| {
-            let child_element = element.child_mut().downcast_mut().unwrap();
-            let changed =
-                self.child
-                    .rebuild(cx, &prev.child, &mut state.0, &mut state.1, child_element);
-            if changed {
-                element.child_mut().request_update();
-            }
-            changed
-        })
+        let child_element = element.child_mut().downcast_mut().unwrap();
+        let changed = self.child.rebuild(cx, &prev.child, state, child_element);
+        if changed {
+            element.child_mut().request_update();
+        }
+        changed
     }
 
     fn event(
@@ -78,7 +72,6 @@ where
         event: Box<dyn Any>,
         app_state: &mut T,
     ) -> EventResult<A> {
-        let tl = &id_path[1..];
-        self.child.event(tl, &mut state.1, event, app_state)
+        self.child.event(id_path, state, event, app_state)
     }
 }

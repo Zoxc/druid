@@ -61,7 +61,7 @@ pub trait View<T, A = ()>: Send {
     type Element: Widget;
 
     /// Build the associated widget and initialize state.
-    fn build(&self, cx: &mut Cx) -> (Id, Self::State, Self::Element);
+    fn build(&self, cx: &mut Cx) -> (Self::State, Self::Element);
 
     /// Update the associated widget.
     ///
@@ -70,7 +70,6 @@ pub trait View<T, A = ()>: Send {
         &self,
         cx: &mut Cx,
         prev: &Self,
-        id: &mut Id,
         state: &mut Self::State,
         element: &mut Self::Element,
     ) -> bool;
@@ -92,7 +91,7 @@ pub trait View<T, A = ()>: Send {
 pub struct Cx {
     id_path: IdPath,
     req_chan: SyncSender<IdPath>,
-    pub(crate) pending_async: HashSet<Id>,
+    pub(crate) pending_async: HashSet<IdPath>, // It seems like this should be a counter.
 }
 
 struct MyWaker {
@@ -142,17 +141,6 @@ impl Cx {
         result
     }
 
-    /// Allocate a new id and run logic with the new id added to the id path.
-    ///
-    /// Also an ergonomic helper.
-    pub fn with_new_id<T, F: FnOnce(&mut Cx) -> T>(&mut self, f: F) -> (Id, T) {
-        let id = Id::next();
-        self.push(id);
-        let result = f(self);
-        self.pop();
-        (id, result)
-    }
-
     pub fn waker(&self) -> Waker {
         futures_task::waker(Arc::new(MyWaker {
             id_path: self.id_path.clone(),
@@ -165,7 +153,7 @@ impl Cx {
     /// Rendering may be delayed when there are pending async futures, to avoid
     /// flashing, and continues when all futures complete, or a timeout, whichever
     /// is first.
-    pub fn add_pending_async(&mut self, id: Id) {
-        self.pending_async.insert(id);
+    pub fn add_pending_async(&mut self, id_path: IdPath) {
+        self.pending_async.insert(id_path);
     }
 }

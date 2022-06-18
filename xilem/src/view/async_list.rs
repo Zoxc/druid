@@ -39,6 +39,7 @@ pub struct AsyncList<T, A, V, FF, F: Fn(usize) -> FF> {
 }
 
 pub struct AsyncListState<T, A, V: View<T, A>> {
+    counter: u64,
     add_req: Vec<usize>,
     remove_req: Vec<usize>,
     requested: HashSet<usize>,
@@ -88,11 +89,11 @@ where
 
     type Element = crate::widget::list::List;
 
-    fn build(&self, cx: &mut Cx) -> (Id, Self::State, Self::Element) {
-        let (id, element) = cx.with_new_id(|cx| {
-            crate::widget::list::List::new(cx.id_path().clone(), self.n_items, self.item_height)
-        });
+    fn build(&self, cx: &mut Cx) -> (Self::State, Self::Element) {
+        let element =
+            crate::widget::list::List::new(cx.id_path().clone(), self.n_items, self.item_height);
         let state = AsyncListState {
+            counter: 0,
             add_req: Vec::new(),
             remove_req: Vec::new(),
             requested: HashSet::new(),
@@ -100,58 +101,65 @@ where
             pending: HashMap::new(),
             completed: Vec::new(),
         };
-        (id, state, element)
+        (state, element)
     }
 
     fn rebuild(
         &self,
         cx: &mut Cx,
         _prev: &Self,
-        id: &mut Id,
         state: &mut Self::State,
         element: &mut Self::Element,
     ) -> bool {
         // TODO: allow updating of n_items and item_height
         let mut changed = false;
-        cx.with_id(*id, |cx| {
-            for i in std::mem::take(&mut state.add_req) {
-                state.requested.insert(i);
-                // spawn a task to run the callback
-                let future = (self.callback)(i);
-                let join_handle = tokio::spawn(Box::pin(future));
-                let task = tokio::task::unconstrained(join_handle);
-                let (id, task) = cx.with_new_id(|cx| PendingTask {
-                    index: i,
-                    task,
-                    waker: cx.waker(),
-                });
-                cx.add_pending_async(id);
-                state.poll_task(task, id);
+
+        for i in std::mem::take(&mut state.add_req) {
+            state.requested.insert(i);
+            // spawn a task to run the callback
+            let future = (self.callback)(i);
+            let join_handle = tokio::spawn(Box::pin(future));
+            let task = tokio::task::unconstrained(join_handle);
+            let future_id = Id(state.counter.wrapping_shl(1) | 0); // Tag Id with 0
+            state.counter += 1;
+            let (id_path, task) = cx.with_id(future_id, |cx| {
+                (
+                    cx.id_path().clone(),
+                    PendingTask {
+                        index: i,
+                        task,
+                        waker: cx.waker(),
+                    },
+                )
+            });
+            cx.add_pending_async(id_path);
+            state.poll_task(task, future_id);
+        }
+        for (i, view) in state.completed.drain(..) {
+            if state.requested.remove(&i) {
+                let child_id = Id(state.counter.wrapping_shl(1) | 1); // Tag Id with 1
+                state.counter += 1;
+                let (child_state, child_element) = cx.with_id(child_id, |cx| view.build(cx));
+                element.set_child(i, Pod::new(child_element));
+                state.items.insert(
+                    i,
+                    ItemState {
+                        id: child_id,
+                        view,
+                        state: child_state,
+                    },
+                );
+                changed = true;
             }
-            for (i, view) in state.completed.drain(..) {
-                if state.requested.remove(&i) {
-                    let (child_id, child_state, child_element) = view.build(cx);
-                    element.set_child(i, Pod::new(child_element));
-                    state.items.insert(
-                        i,
-                        ItemState {
-                            id: child_id,
-                            view,
-                            state: child_state,
-                        },
-                    );
-                    changed = true;
-                }
+        }
+        for i in state.remove_req.drain(..) {
+            if !state.requested.remove(&i) {
+                element.remove_child(i);
+                state.items.remove(&i);
+                changed = true;
             }
-            for i in state.remove_req.drain(..) {
-                if !state.requested.remove(&i) {
-                    element.remove_child(i);
-                    state.items.remove(&i);
-                    changed = true;
-                }
-            }
-            // Note: we're not running rebuild on futures once resolved.
-        });
+        }
+        // Note: we're not running rebuild on futures once resolved.
         changed
     }
 
@@ -163,16 +171,24 @@ where
         app_state: &mut T,
     ) -> EventResult<A> {
         if let Some((id, tl)) = id_path.split_first() {
-            if let Some(pending) = state.pending.remove(id) {
-                if state.poll_task(pending, *id) {
-                    EventResult::RequestRebuild
+            if id.0 & 1 == 0 {
+                // It's a future
+                if let Some(pending) = state.pending.remove(id) {
+                    if state.poll_task(pending, *id) {
+                        EventResult::RequestRebuild
+                    } else {
+                        EventResult::Nop
+                    }
                 } else {
-                    EventResult::Nop
+                    EventResult::Stale
                 }
-            } else if let Some((_, s)) = state.items.iter_mut().find(|(_, s)| s.id == *id) {
-                s.view.event(tl, &mut s.state, event, app_state)
             } else {
-                EventResult::Stale
+                // It's an item
+                if let Some((_, s)) = state.items.iter_mut().find(|(_, s)| s.id == *id) {
+                    s.view.event(tl, &mut s.state, event, app_state)
+                } else {
+                    EventResult::Stale
+                }
             }
         } else {
             let req: &crate::widget::list::ListChildRequest = event.downcast_ref().unwrap();

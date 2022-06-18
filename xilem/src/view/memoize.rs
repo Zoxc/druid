@@ -42,28 +42,27 @@ impl<T, A, D: PartialEq + Clone + Send + 'static, V: View<T, A>, F: Fn(&D) -> V 
 
     type Element = V::Element;
 
-    fn build(&self, cx: &mut Cx) -> (Id, Self::State, Self::Element) {
+    fn build(&self, cx: &mut Cx) -> (Self::State, Self::Element) {
         let view = (self.child_cb)(&self.data);
-        let (id, view_state, element) = view.build(cx);
+        let (view_state, element) = view.build(cx);
         let memoize_state = MemoizeState {
             view,
             view_state,
             dirty: false,
         };
-        (id, memoize_state, element)
+        (memoize_state, element)
     }
 
     fn rebuild(
         &self,
         cx: &mut Cx,
         prev: &Self,
-        id: &mut Id,
         state: &mut Self::State,
         element: &mut Self::Element,
     ) -> bool {
         if std::mem::take(&mut state.dirty) || prev.data != self.data {
             let view = (self.child_cb)(&self.data);
-            let changed = view.rebuild(cx, &state.view, id, &mut state.view_state, element);
+            let changed = view.rebuild(cx, &state.view, &mut state.view_state, element);
             state.view = view;
             changed
         } else {
