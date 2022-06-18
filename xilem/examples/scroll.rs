@@ -28,7 +28,9 @@ fn compute_hash(i: usize) -> String {
 
 fn app_logic(_: &mut ()) -> impl View<()> {
     scroll_view(async_list(10_000, 16.0, |i| async move {
-        format!("{}: {}", i, compute_hash(i))
+        tokio::task::spawn_blocking(move || format!("{}: {}", i, compute_hash(10000 + i)))
+            .await
+            .unwrap()
     }))
 }
 

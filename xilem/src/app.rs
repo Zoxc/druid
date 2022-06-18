@@ -103,7 +103,11 @@ where
     pub fn new(data: T, app_logic: impl FnMut(&mut T) -> V + Send + 'static) -> Self {
         // Create a new tokio runtime. Doing it here is hacky, we should allow
         // the client to do it.
-        let rt = Runtime::new().unwrap();
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .max_blocking_threads(16)
+            .enable_all()
+            .build()
+            .unwrap();
 
         // Note: there is danger of deadlock if exceeded; think this through.
         const CHANNEL_SIZE: usize = 1000;
@@ -325,7 +329,7 @@ where
                             self.ui_state = UiState::Delayed;
                         }
                     }
-                }
+                },
                 Ok(None) => break,
                 Err(_) => {
                     self.render().await;
