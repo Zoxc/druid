@@ -18,6 +18,7 @@ pub mod async_list;
 pub mod button;
 pub mod layout_observer;
 pub mod list;
+pub mod loader;
 pub mod memoize;
 pub mod scroll_view;
 pub mod text;

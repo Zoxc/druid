@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use druid_shell::kurbo::{Point, Size};
+use druid_shell::kurbo::{Point, Rect, Size};
 
 use super::{
     align::{Center, SingleAlignment},
     contexts::LifeCycleCx,
-    EventCx, LayoutCx, LifeCycle, PaintCx, Pod, RawEvent, UpdateCx, Widget,
+    EventCx, LayoutCx, LifeCycle, PaintCx, Pod, PreparePaintCx, RawEvent, UpdateCx, Widget,
 };
 
 pub struct VStack {
@@ -122,6 +122,13 @@ impl Widget for VStack {
     fn align(&self, cx: &mut super::AlignCx, alignment: SingleAlignment) {
         for child in &self.children {
             child.align(cx, alignment);
+        }
+    }
+
+    fn prepare_paint(&mut self, cx: &mut PreparePaintCx, visible: Rect) {
+        for child in &mut self.children {
+            // `visible` is incorrect here, but works for List
+            child.prepare_paint(cx, visible);
         }
     }
 

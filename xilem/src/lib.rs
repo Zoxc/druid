@@ -32,6 +32,7 @@ pub use view::async_list::async_list;
 pub use view::button::button;
 pub use view::layout_observer::LayoutObserver;
 pub use view::list::list;
+pub use view::loader::loader;
 pub use view::memoize::Memoize;
 pub use view::scroll_view::scroll_view;
 pub use view::vstack::v_stack;
