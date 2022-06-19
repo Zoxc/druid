@@ -32,7 +32,11 @@ use super::{Cx, View};
 pub trait AnyView<T, A = ()> {
     fn as_any(&self) -> &dyn Any;
 
-    fn dyn_build(&self, cx: &mut Cx) -> (Id, Box<dyn Any + Send>, Box<dyn AnyWidget>);
+    fn dyn_build(
+        &self,
+        cx: &mut Cx,
+        app_state: &mut T,
+    ) -> (Id, Box<dyn Any + Send>, Box<dyn AnyWidget>);
 
     fn dyn_rebuild(
         &self,
@@ -41,6 +45,7 @@ pub trait AnyView<T, A = ()> {
         id: &mut Id,
         state: &mut Box<dyn Any + Send>,
         element: &mut Box<dyn AnyWidget>,
+        app_state: &mut T,
     ) -> bool;
 
     fn dyn_event(
@@ -61,8 +66,12 @@ where
         self
     }
 
-    fn dyn_build(&self, cx: &mut Cx) -> (Id, Box<dyn Any + Send>, Box<dyn AnyWidget>) {
-        let (id, state, element) = self.build(cx);
+    fn dyn_build(
+        &self,
+        cx: &mut Cx,
+        app_state: &mut T,
+    ) -> (Id, Box<dyn Any + Send>, Box<dyn AnyWidget>) {
+        let (id, state, element) = self.build(cx, app_state);
         (id, Box::new(state), Box::new(element))
     }
 
@@ -73,11 +82,12 @@ where
         id: &mut Id,
         state: &mut Box<dyn Any + Send>,
         element: &mut Box<dyn AnyWidget>,
+        app_state: &mut T,
     ) -> bool {
         if let Some(prev) = prev.as_any().downcast_ref() {
             if let Some(state) = state.downcast_mut() {
                 if let Some(element) = element.deref_mut().as_any_mut().downcast_mut() {
-                    self.rebuild(cx, prev, id, state, element)
+                    self.rebuild(cx, prev, id, state, element, app_state)
                 } else {
                     println!("downcast of element failed in dyn_rebuild");
                     false
@@ -87,7 +97,7 @@ where
                 false
             }
         } else {
-            let (new_id, new_state, new_element) = self.build(cx);
+            let (new_id, new_state, new_element) = self.build(cx, app_state);
             *id = new_id;
             *state = Box::new(new_state);
             *element = Box::new(new_element);
@@ -116,8 +126,8 @@ impl<T, A> View<T, A> for Box<dyn AnyView<T, A> + Send> {
 
     type Element = Box<dyn AnyWidget>;
 
-    fn build(&self, cx: &mut Cx) -> (Id, Self::State, Self::Element) {
-        self.deref().dyn_build(cx)
+    fn build(&self, cx: &mut Cx, app_state: &mut T) -> (Id, Self::State, Self::Element) {
+        self.deref().dyn_build(cx, app_state)
     }
 
     fn rebuild(
@@ -127,9 +137,10 @@ impl<T, A> View<T, A> for Box<dyn AnyView<T, A> + Send> {
         id: &mut Id,
         state: &mut Self::State,
         element: &mut Self::Element,
+        app_state: &mut T,
     ) -> bool {
         self.deref()
-            .dyn_rebuild(cx, prev.deref(), id, state, element)
+            .dyn_rebuild(cx, prev.deref(), id, state, element, app_state)
     }
 
     fn event(

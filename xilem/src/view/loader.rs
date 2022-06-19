@@ -82,7 +82,7 @@ where
 
     type Element = Box<dyn AnyWidget>;
 
-    fn build(&self, cx: &mut Cx) -> (Id, Self::State, Self::Element) {
+    fn build(&self, cx: &mut Cx, app_state: &mut T) -> (Id, Self::State, Self::Element) {
         let (id, (state, element)) = cx.with_new_id(|cx| {
             let future = (self.callback)();
             let (abort_handle, abort_registration) = AbortHandle::new_pair();
@@ -94,13 +94,13 @@ where
             match Pin::new(&mut task).poll(&mut future_cx) {
                 Poll::Ready(v) => {
                     let view = v.unwrap().unwrap();
-                    let (_, state, element) = view.build(cx);
+                    let (_, state, element) = view.build(cx, app_state);
                     let element: Box<dyn AnyWidget> = Box::new(element);
                     (LoaderState::Complete(view, state), element)
                 }
                 Poll::Pending => {
                     cx.add_pending_async(cx.id_path().last().copied().unwrap());
-                    let (_, state, element) = self.pending.build(cx);
+                    let (_, state, element) = self.pending.build(cx, app_state);
                     let element: Box<dyn AnyWidget> = Box::new(element);
                     (
                         LoaderState::Pending {
@@ -124,18 +124,19 @@ where
         id: &mut Id,
         state: &mut Self::State,
         element: &mut Self::Element,
+        _app_state: &mut T,
     ) -> bool {
         match state {
             LoaderState::Build(view) => {
                 let view = view.take().unwrap();
                 // How do we know that the future result did not change here?
-                let (_, new_state, new_element) = view.build(cx);
+                let (_, new_state, new_element) = view.build(cx, _app_state);
                 *state = LoaderState::Complete(view, new_state);
                 *element = Box::new(new_element);
             }
             _ => {
                 // We cannot compare the callback so we must always rebuild.
-                let (new_id, new_state, new_element) = self.build(cx);
+                let (new_id, new_state, new_element) = self.build(cx, _app_state);
                 *id = new_id;
                 *state = new_state;
                 *element = new_element;

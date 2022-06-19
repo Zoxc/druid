@@ -49,7 +49,7 @@ where
 
     type Element = crate::widget::layout_observer::LayoutObserver;
 
-    fn build(&self, cx: &mut Cx) -> (Id, Self::State, Self::Element) {
+    fn build(&self, cx: &mut Cx, _app_state: &mut T) -> (Id, Self::State, Self::Element) {
         let (id, element) =
             cx.with_new_id(|cx| crate::widget::layout_observer::LayoutObserver::new(cx.id_path()));
         let child_state = LayoutObserverState {
@@ -68,6 +68,7 @@ where
         id: &mut crate::id::Id,
         state: &mut Self::State,
         element: &mut Self::Element,
+        app_state: &mut T,
     ) -> bool {
         if let Some(size) = &state.size {
             let view = (self.callback)(*size);
@@ -79,14 +80,15 @@ where
                 ) {
                     let child_pod = element.child_mut().as_mut().unwrap();
                     let child_element = child_pod.downcast_mut().unwrap();
-                    let changed = view.rebuild(cx, prev_view, id, child_state, child_element);
+                    let changed =
+                        view.rebuild(cx, prev_view, id, child_state, child_element, app_state);
                     state.child_view = Some(view);
                     if changed {
                         child_pod.request_update();
                     }
                     changed
                 } else {
-                    let (child_id, child_state, child_element) = view.build(cx);
+                    let (child_id, child_state, child_element) = view.build(cx, app_state);
                     element.set_child(Box::new(child_element));
                     state.child_id = Some(child_id);
                     state.child_state = Some(child_state);

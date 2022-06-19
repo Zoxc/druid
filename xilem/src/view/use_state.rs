@@ -58,12 +58,16 @@ where
 
     type Element = V::Element;
 
-    fn build(&self, cx: &mut Cx) -> (Id, Self::State, Self::Element) {
+    fn build(&self, cx: &mut Cx, app_state: &mut Arc<T>) -> (Id, Self::State, Self::Element) {
         let mut state = (self.f_init)();
         let view = (self.f)(&mut state);
-        let (id, view_state, element) = view.build(cx);
+        let mut local_state = (app_state.clone(), state);
+        let (id, view_state, element) = view.build(cx, &mut local_state);
+        if !Arc::ptr_eq(app_state, &local_state.0) {
+            *app_state = local_state.0
+        }
         let my_state = UseStateState {
-            state: Some(state),
+            state: Some(local_state.1),
             view,
             view_state,
         };
@@ -77,9 +81,23 @@ where
         id: &mut Id,
         state: &mut Self::State,
         element: &mut Self::Element,
+        app_state: &mut Arc<T>,
     ) -> bool {
-        let view = (self.f)(state.state.as_mut().unwrap());
-        let changed = view.rebuild(cx, &state.view, id, &mut state.view_state, element);
+        let mut local_state = state.state.take().unwrap();
+        let view = (self.f)(&mut local_state);
+        let mut local_state = (app_state.clone(), local_state);
+        let changed = view.rebuild(
+            cx,
+            &state.view,
+            id,
+            &mut state.view_state,
+            element,
+            &mut local_state,
+        );
+        if !Arc::ptr_eq(app_state, &local_state.0) {
+            *app_state = local_state.0
+        }
+        state.state = Some(local_state.1);
         state.view = view;
         changed
     }

@@ -45,7 +45,7 @@ impl<T, A> View<T, A> for Button<T, A> {
 
     type Element = crate::widget::button::Button;
 
-    fn build(&self, cx: &mut Cx) -> (Id, Self::State, Self::Element) {
+    fn build(&self, cx: &mut Cx, _app_state: &mut T) -> (Id, Self::State, Self::Element) {
         let (id, element) = cx
             .with_new_id(|cx| crate::widget::button::Button::new(cx.id_path(), self.label.clone()));
         (id, (), element)
@@ -58,6 +58,7 @@ impl<T, A> View<T, A> for Button<T, A> {
         _id: &mut crate::id::Id,
         _state: &mut Self::State,
         element: &mut Self::Element,
+        _app_state: &mut T,
     ) -> bool {
         if prev.label != self.label {
             element.set_label(self.label.clone());

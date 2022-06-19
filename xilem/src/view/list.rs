@@ -68,7 +68,7 @@ where
 
     type Element = crate::widget::list::List;
 
-    fn build(&self, cx: &mut Cx) -> (Id, Self::State, Self::Element) {
+    fn build(&self, cx: &mut Cx, _app_state: &mut T) -> (Id, Self::State, Self::Element) {
         let (id, element) = cx.with_new_id(|cx| {
             crate::widget::list::List::new(cx.id_path().clone(), self.n_items, self.item_height)
         });
@@ -87,6 +87,7 @@ where
         id: &mut Id,
         state: &mut Self::State,
         element: &mut Self::Element,
+        app_state: &mut T,
     ) -> bool {
         // TODO: allow updating of n_items and item_height
         let mut changed = !state.add_req.is_empty() || !state.remove_req.is_empty();
@@ -101,6 +102,7 @@ where
                     &mut child_state.id,
                     &mut child_state.state,
                     child_element,
+                    app_state,
                 );
                 if child_changed {
                     pod.request_update();
@@ -110,7 +112,7 @@ where
             }
             for i in state.add_req.drain(..) {
                 let child_view = (self.callback)(i);
-                let (child_id, child_state, child_element) = child_view.build(cx);
+                let (child_id, child_state, child_element) = child_view.build(cx, app_state);
                 element.set_child(i, Pod::new(child_element));
                 state.items.insert(
                     i,

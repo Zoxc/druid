@@ -33,8 +33,8 @@ use crate::{
 
 pub struct App<T, V: View<T>> {
     req_chan: tokio::sync::mpsc::Sender<AppReq>,
-    response_chan: tokio::sync::mpsc::Receiver<RenderResponse<V, V::State>>,
-    return_chan: tokio::sync::mpsc::Sender<(V, V::State, HashSet<Id>)>,
+    response_chan: tokio::sync::mpsc::Receiver<RenderResponse<T, V, V::State>>,
+    return_chan: tokio::sync::mpsc::Sender<(T, V, V::State, HashSet<Id>)>,
     id: Option<Id>,
     events: Vec<Event>,
     window_handle: WindowHandle,
@@ -51,10 +51,10 @@ const RENDER_DELAY: Duration = Duration::from_millis(5);
 /// State that's kept in a separate task for running the app
 struct AppTask<T, V: View<T>, F: FnMut(&mut T) -> V> {
     req_chan: tokio::sync::mpsc::Receiver<AppReq>,
-    response_chan: tokio::sync::mpsc::Sender<RenderResponse<V, V::State>>,
-    return_chan: tokio::sync::mpsc::Receiver<(V, V::State, HashSet<Id>)>,
+    response_chan: tokio::sync::mpsc::Sender<RenderResponse<T, V, V::State>>,
+    return_chan: tokio::sync::mpsc::Receiver<(T, V, V::State, HashSet<Id>)>,
 
-    data: T,
+    data: Option<T>,
     app_logic: F,
     view: Option<V>,
     state: Option<V::State>,
@@ -73,8 +73,9 @@ pub(crate) enum AppReq {
 }
 
 /// A response sent to a render request.
-struct RenderResponse<V, S> {
+struct RenderResponse<T, V, S> {
     prev: Option<V>,
+    data: T,
     view: V,
     state: Option<S>,
 }
@@ -132,7 +133,7 @@ where
                 req_chan: req_rx,
                 response_chan: response_tx,
                 return_chan: return_rx,
-                data,
+                data: Some(data),
                 app_logic,
                 view: None,
                 state: None,
@@ -232,34 +233,36 @@ where
     fn render_inner(&mut self, delay: bool) -> bool {
         self.cx.pending_async.clear();
         let _ = self.req_chan.blocking_send(AppReq::Render(delay));
-        if let Some(response) = self.response_chan.blocking_recv() {
-            let state =
-                if let Some(element) = self.root_pod.as_mut().and_then(|pod| pod.downcast_mut()) {
-                    let mut state = response.state.unwrap();
-                    let changed = response.view.rebuild(
-                        &mut self.cx,
-                        response.prev.as_ref().unwrap(),
-                        self.id.as_mut().unwrap(),
-                        &mut state,
-                        element,
-                    );
-                    if changed {
-                        self.root_pod.as_mut().unwrap().request_update();
-                    }
-                    assert!(self.cx.is_empty(), "id path imbalance on rebuild");
-                    state
-                } else {
-                    let (id, state, element) = response.view.build(&mut self.cx);
-                    assert!(self.cx.is_empty(), "id path imbalance on build");
-                    self.root_pod = Some(Pod::new(element));
-                    self.id = Some(id);
-                    state
-                };
+        if let Some(mut response) = self.response_chan.blocking_recv() {
+            let state = if let Some(element) =
+                self.root_pod.as_mut().and_then(|pod| pod.downcast_mut())
+            {
+                let mut state = response.state.unwrap();
+                let changed = response.view.rebuild(
+                    &mut self.cx,
+                    response.prev.as_ref().unwrap(),
+                    self.id.as_mut().unwrap(),
+                    &mut state,
+                    element,
+                    &mut response.data,
+                );
+                if changed {
+                    self.root_pod.as_mut().unwrap().request_update();
+                }
+                assert!(self.cx.is_empty(), "id path imbalance on rebuild");
+                state
+            } else {
+                let (id, state, element) = response.view.build(&mut self.cx, &mut response.data);
+                assert!(self.cx.is_empty(), "id path imbalance on build");
+                self.root_pod = Some(Pod::new(element));
+                self.id = Some(id);
+                state
+            };
             let pending = std::mem::take(&mut self.cx.pending_async);
             let has_pending = !pending.is_empty();
             let _ = self
                 .return_chan
-                .blocking_send((response.view, state, pending));
+                .blocking_send((response.data, response.view, state, pending));
             has_pending
         } else {
             false
@@ -289,7 +292,7 @@ where
                                 id_path,
                                 self.state.as_mut().unwrap(),
                                 event.body,
-                                &mut self.data,
+                                self.data.as_mut().unwrap(),
                             );
                         }
                     }
@@ -298,7 +301,7 @@ where
                             &id_path[1..],
                             self.state.as_mut().unwrap(),
                             Box::new(AsyncWake),
-                            &mut self.data,
+                            self.data.as_mut().unwrap(),
                         );
                         if matches!(result, EventResult::RequestRebuild) {
                             // request re-render from UI thread
@@ -325,7 +328,7 @@ where
                             self.ui_state = UiState::Delayed;
                         }
                     }
-                }
+                },
                 Ok(None) => break,
                 Err(_) => {
                     self.render().await;
@@ -336,8 +339,9 @@ where
     }
 
     async fn render(&mut self) {
-        let view = (self.app_logic)(&mut self.data);
+        let view = (self.app_logic)(self.data.as_mut().unwrap());
         let response = RenderResponse {
+            data: self.data.take().unwrap(),
             prev: self.view.take(),
             view,
             state: self.state.take(),
@@ -345,7 +349,8 @@ where
         if self.response_chan.send(response).await.is_err() {
             println!("error sending render response");
         }
-        if let Some((view, state, pending)) = self.return_chan.recv().await {
+        if let Some((data, view, state, pending)) = self.return_chan.recv().await {
+            self.data = Some(data);
             self.view = Some(view);
             self.state = Some(state);
             self.pending_async = pending;

@@ -44,9 +44,9 @@ where
 
     type Element = crate::widget::scroll_view::ScrollView;
 
-    fn build(&self, cx: &mut Cx) -> (Id, Self::State, Self::Element) {
+    fn build(&self, cx: &mut Cx, app_state: &mut T) -> (Id, Self::State, Self::Element) {
         let (id, (child_id, child_state, child_element)) =
-            cx.with_new_id(|cx| self.child.build(cx));
+            cx.with_new_id(|cx| self.child.build(cx, app_state));
         let element = crate::widget::scroll_view::ScrollView::new(child_element);
         (id, (child_id, child_state), element)
     }
@@ -58,12 +58,18 @@ where
         id: &mut Id,
         state: &mut Self::State,
         element: &mut Self::Element,
+        app_state: &mut T,
     ) -> bool {
         cx.with_id(*id, |cx| {
             let child_element = element.child_mut().downcast_mut().unwrap();
-            let changed =
-                self.child
-                    .rebuild(cx, &prev.child, &mut state.0, &mut state.1, child_element);
+            let changed = self.child.rebuild(
+                cx,
+                &prev.child,
+                &mut state.0,
+                &mut state.1,
+                child_element,
+                app_state,
+            );
             if changed {
                 element.child_mut().request_update();
             }

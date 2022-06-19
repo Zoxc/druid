@@ -15,6 +15,7 @@
 pub mod adapt;
 pub mod any_view;
 pub mod async_list;
+pub mod async_then;
 pub mod button;
 pub mod layout_observer;
 pub mod list;
@@ -62,7 +63,7 @@ pub trait View<T, A = ()>: Send {
     type Element: Widget;
 
     /// Build the associated widget and initialize state.
-    fn build(&self, cx: &mut Cx) -> (Id, Self::State, Self::Element);
+    fn build(&self, cx: &mut Cx, app_state: &mut T) -> (Id, Self::State, Self::Element);
 
     /// Update the associated widget.
     ///
@@ -74,6 +75,10 @@ pub trait View<T, A = ()>: Send {
         id: &mut Id,
         state: &mut Self::State,
         element: &mut Self::Element,
+
+        // How do we detect mutation of the app state here? Must it be read-only?
+        // I guess the main app logic function could also mutate and we wouldn't pick up on it.
+        app_state: &mut T,
     ) -> bool;
 
     /// Propagate an event.

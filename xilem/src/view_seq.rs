@@ -26,7 +26,7 @@ pub trait ViewSequence<T, A>: Send {
 
     type Elements;
 
-    fn build(&self, cx: &mut Cx) -> (Self::State, Vec<Pod>);
+    fn build(&self, cx: &mut Cx, app_state: &mut T) -> (Self::State, Vec<Pod>);
 
     fn rebuild(
         &self,
@@ -34,6 +34,7 @@ pub trait ViewSequence<T, A>: Send {
         prev: &Self,
         state: &mut Self::State,
         els: &mut Vec<Pod>,
+        app_state: &mut T,
     ) -> bool;
 
     fn event(
@@ -54,8 +55,8 @@ macro_rules! impl_view_tuple {
 
             type Elements = ( $( $t::Element, )* );
 
-            fn build(&self, cx: &mut Cx) -> (Self::State, Vec<Pod>) {
-                let b = ( $( self.$i.build(cx), )* );
+            fn build(&self, cx: &mut Cx, app_state: &mut T) -> (Self::State, Vec<Pod>) {
+                let b = ( $( self.$i.build(cx, app_state), )* );
                 let state = ( $( b.$i.1, )* [ $( b.$i.0 ),* ]);
                 let els = vec![ $( Pod::new(b.$i.2) ),* ];
                 (state, els)
@@ -67,12 +68,13 @@ macro_rules! impl_view_tuple {
                 prev: &Self,
                 state: &mut Self::State,
                 els: &mut Vec<Pod>,
+                app_state: &mut T,
             ) -> bool {
                 let mut changed = false;
                 $(
                 if self.$i
                     .rebuild(cx, &prev.$i, &mut state.$n[$i], &mut state.$i,
-                        els[$i].downcast_mut().unwrap())
+                        els[$i].downcast_mut().unwrap(), app_state)
                 {
                     els[$i].request_update();
                     changed = true;
