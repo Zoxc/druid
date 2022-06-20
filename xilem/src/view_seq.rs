@@ -17,7 +17,7 @@ use std::any::Any;
 use crate::{
     event::EventResult,
     id::Id,
-    view::{Cx, View},
+    view::{Cx, View, ViewState},
     widget::Pod,
 };
 
@@ -49,7 +49,7 @@ pub trait ViewSequence<T, A>: Send {
 macro_rules! impl_view_tuple {
     ( $n: tt; $( $t:ident),* ; $( $i:tt ),* ) => {
         impl<T, A, $( $t: View<T, A> ),* > ViewSequence<T, A> for ( $( $t, )* )
-            where $( <$t as View<T, A>>::Element: 'static ),*
+            where $( <$t as ViewState>::Element: 'static ),*
         {
             type State = ( $( $t::State, )* [Id; $n]);
 

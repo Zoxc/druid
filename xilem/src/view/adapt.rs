@@ -16,15 +16,15 @@ use std::{any::Any, marker::PhantomData};
 
 use crate::{event::EventResult, id::Id};
 
-use super::{Cx, View};
+use super::{Cx, View, ViewState};
 
 pub struct Adapt<
     T,
     A,
     U,
     B,
-    F: Fn(&mut T, AdaptThunk<U, B, C>) -> AdaptThunkResult<A, U, B, C>,
-    C: View<U, B>,
+    F: Fn(&mut T, AdaptThunk<U, B, C>) -> AdaptThunkResult<A, C>,
+    C: ViewState,
 > {
     f: F,
     child: C,
@@ -35,24 +35,18 @@ pub struct Adapt<
 ///
 /// The closure passed to Adapt should call this thunk with the child's
 /// app state.
-pub struct AdaptThunk<'a, U, B, C: View<U, B>> {
-    call: &'a mut dyn FnMut(&mut U) -> AdaptThunkResult<B, U, B, C>,
+pub struct AdaptThunk<'a, U, B, C: ViewState> {
+    call: &'a mut dyn FnMut(&mut U) -> AdaptThunkResult<B, C>,
 }
 
-pub enum AdaptThunkResult<A, U, B, C: View<U, B>> {
+pub enum AdaptThunkResult<A, C: ViewState> {
     Build((Id, C::State, C::Element)),
     Rebuild(bool),
     Event(EventResult<A>),
 }
 
-impl<
-        T,
-        A,
-        U,
-        B,
-        F: Fn(&mut T, AdaptThunk<U, B, C>) -> AdaptThunkResult<A, U, B, C>,
-        C: View<U, B>,
-    > Adapt<T, A, U, B, F, C>
+impl<T, A, U, B, F: Fn(&mut T, AdaptThunk<U, B, C>) -> AdaptThunkResult<A, C>, C: View<U, B>>
+    Adapt<T, A, U, B, F, C>
 {
     pub fn new(f: F, child: C) -> Self {
         Adapt {
@@ -64,7 +58,7 @@ impl<
 }
 
 impl<'a, U, B, C: View<U, B>> AdaptThunk<'a, U, B, C> {
-    pub fn call(self, app_state: &mut U) -> AdaptThunkResult<B, U, B, C> {
+    pub fn call(self, app_state: &mut U) -> AdaptThunkResult<B, C> {
         (self.call)(app_state)
     }
 }
@@ -74,14 +68,24 @@ impl<
         A,
         U,
         B,
-        F: Fn(&mut T, AdaptThunk<U, B, C>) -> AdaptThunkResult<A, U, B, C> + Send,
-        C: View<U, B>,
-    > View<T, A> for Adapt<T, A, U, B, F, C>
+        F: Fn(&mut T, AdaptThunk<U, B, C>) -> AdaptThunkResult<A, C> + Send,
+        C: ViewState,
+    > ViewState for Adapt<T, A, U, B, F, C>
 {
     type State = C::State;
 
     type Element = C::Element;
+}
 
+impl<
+        T,
+        A,
+        U,
+        B,
+        F: Fn(&mut T, AdaptThunk<U, B, C>) -> AdaptThunkResult<A, C> + Send,
+        C: View<U, B>,
+    > View<T, A> for Adapt<T, A, U, B, F, C>
+{
     fn build(&self, cx: &mut Cx, app_state: &mut T) -> (Id, Self::State, Self::Element) {
         let call =
             &mut |app_state: &mut U| AdaptThunkResult::Build(self.child.build(cx, app_state));

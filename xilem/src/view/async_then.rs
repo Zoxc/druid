@@ -18,7 +18,7 @@ use futures::future::{AbortHandle, Abortable, Aborted};
 use futures_task::{Context, Poll, Waker};
 use tokio::task::JoinHandle;
 
-use crate::{event::EventResult, id::Id, widget::AnyWidget};
+use crate::{event::EventResult, id::Id, widget::AnyWidget, ViewState};
 
 use super::{Cx, View};
 
@@ -59,7 +59,7 @@ pub struct AsyncThen<
     phantom: PhantomData<fn() -> (T, A, ThenView)>,
 }
 
-pub enum AsyncThenState<T, A, ThenView: View<T, A>, PendingView: View<T, A>, TaskOutput> {
+pub enum AsyncThenState<ThenView: ViewState, PendingView: ViewState, TaskOutput> {
     Pending {
         id: Id,
         state: PendingView::State,
@@ -76,8 +76,8 @@ pub enum AsyncThenState<T, A, ThenView: View<T, A>, PendingView: View<T, A>, Tas
     },
 }
 
-impl<T, A, ThenView: View<T, A>, PendingView: View<T, A>, TaskOutput> Drop
-    for AsyncThenState<T, A, ThenView, PendingView, TaskOutput>
+impl<ThenView: ViewState, PendingView: ViewState, TaskOutput> Drop
+    for AsyncThenState<ThenView, PendingView, TaskOutput>
 {
     fn drop(&mut self) {
         match self {
@@ -117,6 +117,23 @@ impl<
     }
 }
 
+impl<Data, T, A, ThenView, PendingView, Task, BuildFuture, Then> ViewState
+    for AsyncThen<Data, T, A, ThenView, PendingView, Task, BuildFuture, Then>
+where
+    Data: PartialEq + Send,
+    BuildFuture: Fn(&Data) -> Task + Send,
+    Then: Fn(&mut T, &Task::Output) -> ThenView + Send,
+    Task: Future<Output = ThenView> + Send + 'static,
+    ThenView: ViewState + 'static,
+    ThenView::Element: 'static,
+    PendingView: ViewState + 'static,
+    PendingView::Element: 'static,
+{
+    type State = AsyncThenState<ThenView, PendingView, Task::Output>;
+
+    type Element = Box<dyn AnyWidget>;
+}
+
 impl<Data, T, A, ThenView, PendingView, Task, BuildFuture, Then> View<T, A>
     for AsyncThen<Data, T, A, ThenView, PendingView, Task, BuildFuture, Then>
 where
@@ -129,10 +146,6 @@ where
     PendingView: View<T, A> + 'static,
     PendingView::Element: 'static,
 {
-    type State = AsyncThenState<T, A, ThenView, PendingView, Task::Output>;
-
-    type Element = Box<dyn AnyWidget>;
-
     fn build(&self, cx: &mut Cx, app_state: &mut T) -> (Id, Self::State, Self::Element) {
         let (id, (state, element)) = cx.with_new_id(|cx| {
             let future = (self.build_future)(&self.data);

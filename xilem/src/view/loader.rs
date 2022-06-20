@@ -18,7 +18,7 @@ use futures::future::{AbortHandle, Abortable, Aborted};
 use futures_task::{Context, Poll, Waker};
 use tokio::task::JoinHandle;
 
-use crate::{event::EventResult, id::Id, widget::AnyWidget};
+use crate::{event::EventResult, id::Id, widget::AnyWidget, ViewState};
 
 use super::{Cx, View};
 
@@ -28,7 +28,7 @@ pub struct Loader<T, A, V, P, FF, F: Fn() -> FF> {
     phantom: PhantomData<fn() -> (T, A, V)>,
 }
 
-pub enum LoaderState<T, A, V: View<T, A>, P: View<T, A>> {
+pub enum LoaderState<V: ViewState, P: ViewState> {
     Pending {
         state: P::State,
         task: JoinHandle<Result<V, Aborted>>,
@@ -39,7 +39,7 @@ pub enum LoaderState<T, A, V: View<T, A>, P: View<T, A>> {
     Complete(V, V::State),
 }
 
-impl<T, A, V: View<T, A>, P: View<T, A>> Drop for LoaderState<T, A, V, P> {
+impl<V: ViewState, P: ViewState> Drop for LoaderState<V, P> {
     fn drop(&mut self) {
         match self {
             Self::Pending {
@@ -69,6 +69,20 @@ impl<T, A, V, P, FF, F: Fn() -> FF> Loader<T, A, V, P, FF, F> {
     }
 }
 
+impl<T, A, V: ViewState, P: ViewState, FF, F: Fn() -> FF + Send> ViewState
+    for Loader<T, A, V, P, FF, F>
+where
+    FF: Future<Output = V> + Send + 'static,
+    V: 'static,
+    V::Element: 'static,
+    P: 'static,
+    P::Element: 'static,
+{
+    type State = LoaderState<V, P>;
+
+    type Element = Box<dyn AnyWidget>;
+}
+
 impl<T, A, V: View<T, A>, P: View<T, A>, FF, F: Fn() -> FF + Send> View<T, A>
     for Loader<T, A, V, P, FF, F>
 where
@@ -78,10 +92,6 @@ where
     P: 'static,
     P::Element: 'static,
 {
-    type State = LoaderState<T, A, V, P>;
-
-    type Element = Box<dyn AnyWidget>;
-
     fn build(&self, cx: &mut Cx, app_state: &mut T) -> (Id, Self::State, Self::Element) {
         let (id, (state, element)) = cx.with_new_id(|cx| {
             let future = (self.callback)();

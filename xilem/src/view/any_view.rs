@@ -16,7 +16,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-use crate::{event::EventResult, id::Id, widget::AnyWidget};
+use crate::{event::EventResult, id::Id, widget::AnyWidget, ViewState};
 
 use super::{Cx, View};
 
@@ -121,11 +121,13 @@ where
     }
 }
 
-impl<T, A> View<T, A> for Box<dyn AnyView<T, A> + Send> {
+impl<T, A> ViewState for Box<dyn AnyView<T, A> + Send> {
     type State = Box<dyn Any + Send>;
 
     type Element = Box<dyn AnyWidget>;
+}
 
+impl<T, A> View<T, A> for Box<dyn AnyView<T, A> + Send> {
     fn build(&self, cx: &mut Cx, app_state: &mut T) -> (Id, Self::State, Self::Element) {
         self.deref().dyn_build(cx, app_state)
     }

@@ -18,7 +18,7 @@
 
 use std::{any::Any, collections::BTreeMap, marker::PhantomData};
 
-use crate::{event::EventResult, id::Id, widget::Pod};
+use crate::{event::EventResult, id::Id, widget::Pod, ViewState};
 
 use super::{Cx, View};
 
@@ -29,13 +29,13 @@ pub struct List<T, A, V, F: Fn(usize) -> V> {
     phantom: PhantomData<fn() -> (T, A)>,
 }
 
-pub struct ListState<T, A, V: View<T, A>> {
+pub struct ListState<V: ViewState> {
     add_req: Vec<usize>,
     remove_req: Vec<usize>,
-    items: BTreeMap<usize, ItemState<T, A, V>>,
+    items: BTreeMap<usize, ItemState<V>>,
 }
 
-struct ItemState<T, A, V: View<T, A>> {
+struct ItemState<V: ViewState> {
     id: Id,
     view: V,
     state: V::State,
@@ -60,14 +60,19 @@ impl<T, A, V, F: Fn(usize) -> V> List<T, A, V, F> {
     }
 }
 
+impl<T, A, V: ViewState, F: Fn(usize) -> V + Send> ViewState for List<T, A, V, F>
+where
+    V::Element: 'static,
+{
+    type State = ListState<V>;
+
+    type Element = crate::widget::list::List;
+}
+
 impl<T, A, V: View<T, A>, F: Fn(usize) -> V + Send> View<T, A> for List<T, A, V, F>
 where
     V::Element: 'static,
 {
-    type State = ListState<T, A, V>;
-
-    type Element = crate::widget::list::List;
-
     fn build(&self, cx: &mut Cx, _app_state: &mut T) -> (Id, Self::State, Self::Element) {
         let (id, element) = cx.with_new_id(|cx| {
             crate::widget::list::List::new(cx.id_path().clone(), self.n_items, self.item_height)

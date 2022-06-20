@@ -14,7 +14,7 @@
 
 use std::{any::Any, marker::PhantomData};
 
-use crate::{event::EventResult, id::Id, View};
+use crate::{event::EventResult, id::Id, View, ViewState};
 
 use super::Cx;
 
@@ -36,14 +36,16 @@ impl<T, A, C> ScrollView<T, A, C> {
     }
 }
 
+impl<T, A, C: ViewState> ViewState for ScrollView<T, A, C> {
+    type State = (Id, C::State);
+
+    type Element = crate::widget::scroll_view::ScrollView;
+}
+
 impl<T, A, C: View<T, A>> View<T, A> for ScrollView<T, A, C>
 where
     C::Element: 'static,
 {
-    type State = (Id, C::State);
-
-    type Element = crate::widget::scroll_view::ScrollView;
-
     fn build(&self, cx: &mut Cx, app_state: &mut T) -> (Id, Self::State, Self::Element) {
         let (id, (child_id, child_state, child_element)) =
             cx.with_new_id(|cx| self.child.build(cx, app_state));

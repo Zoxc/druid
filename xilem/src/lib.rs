@@ -19,24 +19,30 @@
 
 mod app;
 mod app_main;
+
 mod event;
 mod id;
 mod view;
-mod view_seq;
-mod widget;
+pub mod widget;
 
+mod view_seq;
 pub use app::App;
 pub use app_main::AppLauncher;
-pub use view::adapt::Adapt;
+pub use event::EventResult;
+pub use id::{Id, IdPath};
+pub use view::adapt::{Adapt, AdaptThunk, AdaptThunkResult};
 pub use view::async_list::async_list;
 pub use view::async_then::async_then;
 pub use view::button::button;
 pub use view::layout_observer::LayoutObserver;
 pub use view::list::list;
 pub use view::loader::loader;
+pub use view::local_state::LocalState;
 pub use view::memoize::Memoize;
 pub use view::scroll_view::scroll_view;
+pub use view::use_state::UseState;
+pub use view::use_state_mut::UseStateMut;
 pub use view::vstack::v_stack;
-pub use view::View;
+pub use view::{Cx, View, ViewState};
 pub use widget::align::{AlignmentAxis, AlignmentProxy, HorizAlignment, VertAlignment};
 pub use widget::Widget;

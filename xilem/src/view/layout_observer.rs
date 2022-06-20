@@ -18,14 +18,14 @@ use druid_shell::kurbo::Size;
 
 use crate::{event::EventResult, id::Id};
 
-use super::{Cx, View};
+use super::{Cx, View, ViewState};
 
 pub struct LayoutObserver<T, A, F, V> {
     callback: F,
     phantom: PhantomData<fn() -> (T, A, V)>,
 }
 
-pub struct LayoutObserverState<T, A, V: View<T, A>> {
+pub struct LayoutObserverState<V: ViewState> {
     size: Option<Size>,
     child_id: Option<Id>,
     child_view: Option<V>,
@@ -41,14 +41,19 @@ impl<T, A, F, V> LayoutObserver<T, A, F, V> {
     }
 }
 
+impl<T, A, F: Fn(Size) -> V + Send, V: ViewState> ViewState for LayoutObserver<T, A, F, V>
+where
+    V::Element: 'static,
+{
+    type State = LayoutObserverState<V>;
+
+    type Element = crate::widget::layout_observer::LayoutObserver;
+}
+
 impl<T, A, F: Fn(Size) -> V + Send, V: View<T, A>> View<T, A> for LayoutObserver<T, A, F, V>
 where
     V::Element: 'static,
 {
-    type State = LayoutObserverState<T, A, V>;
-
-    type Element = crate::widget::layout_observer::LayoutObserver;
-
     fn build(&self, cx: &mut Cx, _app_state: &mut T) -> (Id, Self::State, Self::Element) {
         let (id, element) =
             cx.with_new_id(|cx| crate::widget::layout_observer::LayoutObserver::new(cx.id_path()));

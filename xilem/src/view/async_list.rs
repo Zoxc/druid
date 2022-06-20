@@ -27,7 +27,7 @@ use std::{
 use futures_task::{Context, Poll, Waker};
 use tokio::task::{JoinHandle, Unconstrained};
 
-use crate::{event::EventResult, id::Id, widget::Pod};
+use crate::{event::EventResult, id::Id, widget::Pod, ViewState};
 
 use super::{Cx, View};
 
@@ -38,11 +38,11 @@ pub struct AsyncList<T, A, V, FF, F: Fn(usize) -> FF> {
     phantom: PhantomData<fn() -> (T, A, V)>,
 }
 
-pub struct AsyncListState<T, A, V: View<T, A>> {
+pub struct AsyncListState<V: ViewState> {
     add_req: Vec<usize>,
     remove_req: Vec<usize>,
     requested: HashSet<usize>,
-    items: BTreeMap<usize, ItemState<T, A, V>>,
+    items: BTreeMap<usize, ItemState<V>>,
     pending: HashMap<Id, PendingTask<V>>,
     completed: Vec<(usize, V)>,
 }
@@ -53,7 +53,7 @@ struct PendingTask<V> {
     waker: Waker,
 }
 
-struct ItemState<T, A, V: View<T, A>> {
+struct ItemState<V: ViewState> {
     id: Id,
     view: V,
     state: V::State,
@@ -78,16 +78,23 @@ impl<T, A, V, FF, F: Fn(usize) -> FF> AsyncList<T, A, V, FF, F> {
     }
 }
 
+impl<T, A, V: ViewState, FF, F: Fn(usize) -> FF + Send> ViewState for AsyncList<T, A, V, FF, F>
+where
+    FF: Future<Output = V> + Send + 'static,
+    V: 'static,
+    V::Element: 'static,
+{
+    type State = AsyncListState<V>;
+
+    type Element = crate::widget::list::List;
+}
+
 impl<T, A, V: View<T, A>, FF, F: Fn(usize) -> FF + Send> View<T, A> for AsyncList<T, A, V, FF, F>
 where
     FF: Future<Output = V> + Send + 'static,
     V: 'static,
     V::Element: 'static,
 {
-    type State = AsyncListState<T, A, V>;
-
-    type Element = crate::widget::list::List;
-
     fn build(&self, cx: &mut Cx, _app_state: &mut T) -> (Id, Self::State, Self::Element) {
         let (id, element) = cx.with_new_id(|cx| {
             crate::widget::list::List::new(cx.id_path().clone(), self.n_items, self.item_height)
@@ -184,7 +191,7 @@ where
     }
 }
 
-impl<T, A, V: View<T, A>> AsyncListState<T, A, V> {
+impl<V: ViewState> AsyncListState<V> {
     fn poll_task(&mut self, mut task: PendingTask<V>, id: Id) -> bool {
         let mut future_cx = Context::from_waker(&task.waker);
         match Pin::new(&mut task.task).poll(&mut future_cx) {

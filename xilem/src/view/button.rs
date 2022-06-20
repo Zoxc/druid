@@ -16,7 +16,7 @@ use std::any::Any;
 
 use crate::{event::EventResult, id::Id};
 
-use super::{Cx, View};
+use super::{Cx, View, ViewState};
 
 pub struct Button<T, A> {
     label: String,
@@ -40,11 +40,13 @@ impl<T, A> Button<T, A> {
     }
 }
 
-impl<T, A> View<T, A> for Button<T, A> {
+impl<T, A> ViewState for Button<T, A> {
     type State = ();
 
     type Element = crate::widget::button::Button;
+}
 
+impl<T, A> View<T, A> for Button<T, A> {
     fn build(&self, cx: &mut Cx, _app_state: &mut T) -> (Id, Self::State, Self::Element) {
         let (id, element) = cx
             .with_new_id(|cx| crate::widget::button::Button::new(cx.id_path(), self.label.clone()));

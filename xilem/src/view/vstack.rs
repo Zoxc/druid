@@ -16,7 +16,7 @@ use std::{any::Any, marker::PhantomData};
 
 use crate::{event::EventResult, id::Id, view_seq::ViewSequence, widget::WidgetTuple};
 
-use super::{Cx, View};
+use super::{Cx, View, ViewState};
 
 pub struct VStack<T, A, VT: ViewSequence<T, A>> {
     children: VT,
@@ -34,14 +34,19 @@ impl<T, A, VT: ViewSequence<T, A>> VStack<T, A, VT> {
     }
 }
 
-impl<T, A, VT: ViewSequence<T, A>> View<T, A> for VStack<T, A, VT>
+impl<T, A, VT: ViewSequence<T, A>> ViewState for VStack<T, A, VT>
 where
     VT::Elements: WidgetTuple,
 {
     type State = VT::State;
 
     type Element = crate::widget::vstack::VStack;
+}
 
+impl<T, A, VT: ViewSequence<T, A>> View<T, A> for VStack<T, A, VT>
+where
+    VT::Elements: WidgetTuple,
+{
     fn build(&self, cx: &mut Cx, app_state: &mut T) -> (Id, Self::State, Self::Element) {
         let (id, (state, elements)) = cx.with_new_id(|cx| self.children.build(cx, app_state));
         let column = crate::widget::vstack::VStack::new(elements);

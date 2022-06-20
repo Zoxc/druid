@@ -11,7 +11,6 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
 pub mod adapt;
 pub mod any_view;
 pub mod async_list;
@@ -20,10 +19,12 @@ pub mod button;
 pub mod layout_observer;
 pub mod list;
 pub mod loader;
+pub mod local_state;
 pub mod memoize;
 pub mod scroll_view;
 pub mod text;
 pub mod use_state;
+pub mod use_state_mut;
 pub mod vstack;
 
 use std::{
@@ -55,13 +56,16 @@ use crate::{
 /// and also a type for actions which are passed up the tree in event
 /// propagation. During event handling, mutable access to the app state is
 /// given to view nodes, which in turn can make expose it to callbacks.
-pub trait View<T, A = ()>: Send {
+///
+pub trait ViewState: Send {
     /// Associated state for the view.
     type State: Send;
 
     /// The associated widget for the view.
     type Element: Widget;
+}
 
+pub trait View<T, A = ()>: ViewState {
     /// Build the associated widget and initialize state.
     fn build(&self, cx: &mut Cx, app_state: &mut T) -> (Id, Self::State, Self::Element);
 

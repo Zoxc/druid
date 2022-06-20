@@ -16,14 +16,14 @@ use std::any::Any;
 
 use crate::{event::EventResult, id::Id};
 
-use super::{Cx, View};
+use super::{Cx, View, ViewState};
 
 pub struct Memoize<D, F> {
     data: D,
     child_cb: F,
 }
 
-pub struct MemoizeState<T, A, V: View<T, A>> {
+pub struct MemoizeState<V: ViewState> {
     view: V,
     view_state: V::State,
     dirty: bool,
@@ -35,13 +35,17 @@ impl<D, V, F: Fn(&D) -> V> Memoize<D, F> {
     }
 }
 
+impl<D: PartialEq + Clone + Send + 'static, V: ViewState, F: Fn(&D) -> V + Send> ViewState
+    for Memoize<D, F>
+{
+    type State = MemoizeState<V>;
+
+    type Element = V::Element;
+}
+
 impl<T, A, D: PartialEq + Clone + Send + 'static, V: View<T, A>, F: Fn(&D) -> V + Send> View<T, A>
     for Memoize<D, F>
 {
-    type State = MemoizeState<T, A, V>;
-
-    type Element = V::Element;
-
     fn build(&self, cx: &mut Cx, app_state: &mut T) -> (Id, Self::State, Self::Element) {
         let view = (self.child_cb)(&self.data);
         let (id, view_state, element) = view.build(cx, app_state);

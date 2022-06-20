@@ -16,13 +16,15 @@ use std::any::Any;
 
 use crate::{event::EventResult, id::Id};
 
-use super::{Cx, View};
+use super::{Cx, View, ViewState};
 
-impl<T, A> View<T, A> for String {
+impl ViewState for String {
     type State = ();
 
     type Element = crate::widget::text::TextWidget;
+}
 
+impl<T, A> View<T, A> for String {
     fn build(&self, cx: &mut Cx, _app_state: &mut T) -> (Id, Self::State, Self::Element) {
         let (id, element) = cx.with_new_id(|_| crate::widget::text::TextWidget::new(self.clone()));
         (id, (), element)

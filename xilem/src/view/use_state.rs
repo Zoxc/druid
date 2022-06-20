@@ -14,7 +14,7 @@
 
 use std::{any::Any, marker::PhantomData, sync::Arc};
 
-use crate::{event::EventResult, id::Id};
+use crate::{event::EventResult, id::Id, ViewState};
 
 use super::{Cx, View};
 
@@ -33,7 +33,7 @@ pub struct UseState<T, A, S, V, FInit, F> {
     phantom: PhantomData<fn() -> (T, A, S, V)>,
 }
 
-pub struct UseStateState<T, A, S, V: View<(Arc<T>, S), A>> {
+pub struct UseStateState<S, V: ViewState> {
     state: Option<S>,
     view: V,
     view_state: V::State,
@@ -47,6 +47,18 @@ impl<T, A, S, V, FInit: Fn() -> S, F: Fn(&mut S) -> V> UseState<T, A, S, V, FIni
     }
 }
 
+impl<T, A, S, V: ViewState, FInit: Fn() -> S, F: Fn(&mut S) -> V> ViewState
+    for UseState<T, A, S, V, FInit, F>
+where
+    S: Send,
+    FInit: Send,
+    F: Send,
+{
+    type State = UseStateState<S, V>;
+
+    type Element = V::Element;
+}
+
 impl<T, A, S, V: View<(Arc<T>, S), A>, FInit: Fn() -> S, F: Fn(&mut S) -> V> View<Arc<T>, A>
     for UseState<T, A, S, V, FInit, F>
 where
@@ -54,10 +66,6 @@ where
     FInit: Send,
     F: Send,
 {
-    type State = UseStateState<T, A, S, V>;
-
-    type Element = V::Element;
-
     fn build(&self, cx: &mut Cx, app_state: &mut Arc<T>) -> (Id, Self::State, Self::Element) {
         let mut state = (self.f_init)();
         let view = (self.f)(&mut state);
