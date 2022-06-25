@@ -48,10 +48,10 @@ impl<I, F, K> ForEach<I, F, K> {
 impl<I, T, A, V, F, K> View<T, A> for ForEach<I, F, K>
 where
     V: View<T, A>,
-    F: Fn(&I) -> V + Send,
+    F: Fn(&mut T, &I) -> V + Send,
     K: Fn(&I) -> usize + Send,
     V::Element: 'static,
-    I: Send + std::fmt::Debug,
+    I: Send,
 {
     type State = ForEachState<T, A, V>;
 
@@ -65,7 +65,7 @@ where
                 .iter()
                 .map(|item| {
                     let key = (self.key)(item);
-                    let view = (self.map)(item);
+                    let view = (self.map)(app_state, item);
                     let (id, state, element) = view.build(cx, app_state);
                     children.push(Pod::new(element));
                     ItemState {
@@ -85,7 +85,7 @@ where
     fn rebuild(
         &self,
         cx: &mut Cx,
-        prev: &Self,
+        _prev: &Self,
         id: &mut Id,
         state: &mut Self::State,
         element: &mut Self::Element,
@@ -94,12 +94,13 @@ where
         let mut changed = false;
         cx.with_id(*id, |cx| {
             let mut children = Vec::new();
+            let mut removed = 0;
             let items = self
                 .items
                 .iter()
                 .map(|item| {
                     let key = (self.key)(item);
-                    let view = (self.map)(item);
+                    let view = (self.map)(app_state, item);
                     let index = state
                         .items
                         .iter()
@@ -109,9 +110,13 @@ where
                     match index {
                         Some(index) => {
                             // Reusing an existing view
+
+                            let old_index = index + removed;
+
                             let mut item = state.items.remove(index);
                             let mut element = element.children_mut().remove(index);
-                            changed |= view.rebuild(
+                            removed += 1;
+                            let item_changed = view.rebuild(
                                 cx,
                                 &item.view,
                                 &mut item.id,
@@ -119,6 +124,18 @@ where
                                 element.downcast_mut().unwrap(),
                                 app_state,
                             );
+                            item.view = view;
+
+                            if item_changed {
+                                element.request_update();
+                                changed = true;
+                            }
+
+                            // Our position changed
+                            if old_index != children.len() {
+                                changed = true;
+                            }
+
                             children.push(element);
                             item
                         }
@@ -144,6 +161,7 @@ where
             *element.children_mut() = children;
             *state = ForEachState { items };
         });
+
         changed
     }
 

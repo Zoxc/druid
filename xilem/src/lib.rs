@@ -32,6 +32,7 @@ pub use view::async_list::async_list;
 pub use view::async_then::async_then;
 pub use view::button::button;
 pub use view::for_each::ForEach;
+pub use view::id_printer::IdPrinter;
 pub use view::layout_observer::LayoutObserver;
 pub use view::list::list;
 pub use view::loader::loader;

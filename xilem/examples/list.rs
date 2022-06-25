@@ -12,28 +12,59 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use xilem::{button, v_stack, Adapt, App, AppLauncher, ForEach, LayoutObserver, Memoize, View};
+use rand::Rng;
+use xilem::{button, v_stack, App, AppLauncher, ForEach, IdPrinter, View};
+
+#[derive(Clone, Debug)]
+struct Item {
+    key: usize,
+    name: String,
+}
 
 #[derive(Default)]
 struct AppData {
-    list: Vec<String>,
+    next_key: usize,
+    name: usize,
+    list: Vec<Item>,
 }
 
 fn app_logic(data: &mut AppData) -> impl View<AppData> {
     v_stack((
+        format!("Next name: {}", data.name),
+        button("Increase", |data: &mut AppData| {
+            data.name = data.name.wrapping_add(1);
+        }),
+        button("Decrease", |data: &mut AppData| {
+            data.name = data.name.wrapping_sub(1);
+        }),
         button("Add", |data: &mut AppData| {
-            data.list.push("Test".to_string())
+            data.list.push(Item {
+                key: data.next_key,
+                name: data.name.to_string(),
+            });
+            data.next_key += 1;
+        }),
+        button("Shuffle", |data: &mut AppData| {
+            let len = data.list.len();
+            if len >= 2 {
+                let mut rng = rand::thread_rng();
+                for i in 0..(len - 1) {
+                    data.list.swap(i, rng.gen_range(i..len));
+                }
+            }
         }),
         ForEach::new(
             data.list.clone(),
-            |i: &String| i.len(),
-            |i: &String| {
-                let i = i.to_owned();
+            |i: &Item| i.key,
+            |data: &mut AppData, i: &Item| {
+                let key = i.key;
                 // For each item
                 v_stack((
-                    i.clone(),
+                    "=======".to_owned(),
+                    IdPrinter,
+                    format!("Item {} - Next {}", i.name, data.name),
                     button("Remove", move |data: &mut AppData| {
-                        data.list.retain(|e| e != &i)
+                        data.list.retain(|e| e.key != key)
                     }),
                 ))
             },
@@ -44,7 +75,9 @@ fn app_logic(data: &mut AppData) -> impl View<AppData> {
 pub fn main() {
     let app = App::new(
         AppData {
-            list: vec!["Hi".to_string(), "There".to_string()],
+            next_key: 0,
+            name: 0,
+            list: vec![],
         },
         app_logic,
     );

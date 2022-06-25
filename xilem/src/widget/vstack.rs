@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::cmp::max;
+
 use druid_shell::kurbo::{Point, Rect, Size};
 
 use super::{
@@ -56,6 +58,9 @@ impl Widget for VStack {
     }
 
     fn update(&mut self, cx: &mut UpdateCx) {
+        // Our children might have changed sizes
+        cx.request_layout();
+
         for child in &mut self.children {
             child.update(cx);
         }
@@ -71,7 +76,7 @@ impl Widget for VStack {
             max_size.width = max_size.width.max(child_max.width);
             max_size.height += child_max.height;
         }
-        let spacing = self.spacing * (self.children.len() - 1) as f64;
+        let spacing = self.spacing * (max(self.children.len(), 1) - 1) as f64;
         min_size.height += spacing;
         max_size.height += spacing;
         (min_size, max_size)
@@ -83,7 +88,8 @@ impl Widget for VStack {
         child_order.sort_by_key(|ix| self.children[*ix].height_flexibility().to_bits());
         // Offer remaining height to each child
         let mut n_remaining = self.children.len();
-        let mut height_remaining = proposed_size.height - (n_remaining - 1) as f64 * self.spacing;
+        let mut height_remaining =
+            proposed_size.height - (max(n_remaining, 1) - 1) as f64 * self.spacing;
         for ix in child_order {
             let child_height = (height_remaining / n_remaining as f64).max(0.0);
             let child_proposed = Size::new(proposed_size.width, child_height);
